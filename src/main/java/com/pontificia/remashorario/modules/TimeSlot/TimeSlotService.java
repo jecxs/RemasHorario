@@ -1,0 +1,137 @@
+package com.pontificia.remashorario.modules.TimeSlot;
+
+import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotRequestDTO;
+import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotResponseDTO;
+
+import com.pontificia.remashorario.modules.TimeSlot.mapper.TimeSlotMapper;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
+
+import jakarta.persistence.EntityNotFoundException;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+
+@Service
+public class TimeSlotService {
+
+    private final TimeSlotRepository timeSlotRepository;
+    private final TimeSlotMapper timeSlotMapper;
+
+    public TimeSlotService(TimeSlotRepository timeSlotRepository, TimeSlotMapper timeSlotMapper) {
+        this.timeSlotRepository = timeSlotRepository;
+        this.timeSlotMapper = timeSlotMapper;
+    }
+
+    @Transactional
+    public TimeSlotResponseDTO createTimeSlot(TimeSlotRequestDTO requestDTO) {
+        if (requestDTO.getStartTime().isAfter(requestDTO.getEndTime()) || requestDTO.getStartTime().equals(requestDTO.getEndTime())) {
+            throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
+        }
+
+        long totalSlotDurationMinutes = Duration.between(requestDTO.getStartTime(), requestDTO.getEndTime()).toMinutes();
+        int pedagogicalHourDuration = requestDTO.getPedagogicalHourDurationInMinutes();
+
+        if (pedagogicalHourDuration <= 0) {
+            throw new IllegalArgumentException("La duración de la hora pedagógica debe ser positiva.");
+        }
+        if (totalSlotDurationMinutes <= 0) {
+            throw new IllegalArgumentException("La duración total del turno debe ser positiva.");
+        }
+        if (totalSlotDurationMinutes % pedagogicalHourDuration != 0) {
+            throw new IllegalArgumentException("La duración total del turno no es un múltiplo exacto de la duración de la hora pedagógica. No se pueden encajar las horas pedagógicas sin dejar huecos.");
+        }
+
+        TimeSlotEntity timeSlotEntity = timeSlotMapper.toTimeSlotEntity(requestDTO);
+        generateTeachingHoursForTimeSlot(timeSlotEntity, pedagogicalHourDuration, totalSlotDurationMinutes);
+
+        TimeSlotEntity savedTimeSlot = timeSlotRepository.save(timeSlotEntity);
+        return timeSlotMapper.toTimeSlotResponseDTO(savedTimeSlot);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TimeSlotResponseDTO> getAllTimeSlots() {
+        return timeSlotRepository.findAll().stream()
+                .map(timeSlotMapper::toTimeSlotResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public TimeSlotResponseDTO getTimeSlotById(UUID id) {
+        TimeSlotEntity timeSlotEntity = timeSlotRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Turno no encontrado con ID: " + id));
+        return timeSlotMapper.toTimeSlotResponseDTO(timeSlotEntity);
+    }
+
+    @Transactional
+    public TimeSlotResponseDTO updateTimeSlot(UUID id, TimeSlotRequestDTO requestDTO) {
+        TimeSlotEntity existingTimeSlot = timeSlotRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Turno no encontrado con ID: " + id));
+
+        if (requestDTO.getStartTime().isAfter(requestDTO.getEndTime()) || requestDTO.getStartTime().equals(requestDTO.getEndTime())) {
+            throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
+        }
+
+        long totalSlotDurationMinutes = Duration.between(requestDTO.getStartTime(), requestDTO.getEndTime()).toMinutes();
+        int pedagogicalHourDuration = requestDTO.getPedagogicalHourDurationInMinutes();
+
+        if (pedagogicalHourDuration <= 0) {
+            throw new IllegalArgumentException("La duración de la hora pedagógica debe ser positiva.");
+        }
+        if (totalSlotDurationMinutes <= 0) {
+            throw new IllegalArgumentException("La duración total del turno debe ser positiva.");
+        }
+        if (totalSlotDurationMinutes % pedagogicalHourDuration != 0) {
+            throw new IllegalArgumentException("La duración total del turno no es un múltiplo exacto de la duración de la hora pedagógica. No se pueden encajar las horas pedagógicas sin dejar huecos.");
+        }
+
+        existingTimeSlot.setName(requestDTO.getName());
+        existingTimeSlot.setStartTime(requestDTO.getStartTime());
+        existingTimeSlot.setEndTime(requestDTO.getEndTime());
+
+        // Limpiar las horas pedagógicas existentes y regenerarlas
+        existingTimeSlot.getTeachingHours().clear(); // Esto las marcará para eliminación por orphanRemoval
+        // Es necesario llamar a save para que orphanRemoval tenga efecto antes de añadir nuevas.
+        // O, si se quiere evitar un save intermedio, hay que gestionar la eliminación explícitamente o
+        // asegurarse de que la colección se reemplace completamente de una manera que JPA entienda.
+        // Para simplificar, aquí se limpian y luego se añaden las nuevas antes del save final.
+
+        generateTeachingHoursForTimeSlot(existingTimeSlot, pedagogicalHourDuration, totalSlotDurationMinutes);
+
+        TimeSlotEntity updatedTimeSlot = timeSlotRepository.save(existingTimeSlot);
+        return timeSlotMapper.toTimeSlotResponseDTO(updatedTimeSlot);
+    }
+
+    private void generateTeachingHoursForTimeSlot(TimeSlotEntity timeSlotEntity, int pedagogicalHourDuration, long totalSlotDurationMinutes) {
+        timeSlotEntity.getTeachingHours().clear(); // Asegurarse de que esté vacía antes de generar
+        int numberOfTeachingHours = (int) (totalSlotDurationMinutes / pedagogicalHourDuration);
+        LocalTime currentStartTime = timeSlotEntity.getStartTime();
+
+        for (int i = 1; i <= numberOfTeachingHours; i++) {
+            TeachingHourEntity teachingHour = new TeachingHourEntity();
+            teachingHour.setOrderInTimeSlot(i);
+            teachingHour.setStartTime(currentStartTime);
+            LocalTime endTime = currentStartTime.plusMinutes(pedagogicalHourDuration);
+            teachingHour.setEndTime(endTime);
+            teachingHour.setDurationMinutes(pedagogicalHourDuration);
+            // La relación bidireccional se establece al añadir a la lista del TimeSlotEntity
+            timeSlotEntity.addTeachingHour(teachingHour); // Usa el helper para asegurar la relación bidireccional
+            currentStartTime = endTime;
+        }
+    }
+
+
+    @Transactional
+    public void deleteTimeSlot(UUID id) {
+        if (!timeSlotRepository.existsById(id)) {
+            throw new EntityNotFoundException("Turno no encontrado con ID: " + id);
+        }
+        timeSlotRepository.deleteById(id); // orphanRemoval se encargará de las TeachingHourEntity
+    }
+}
