@@ -8,6 +8,6 @@ import java.util.UUID;
 @Repository
 public interface StudentGroupRepository extends BaseRepository<StudentGroupEntity> {
 
-    // Método para verificar si un grupo con un nombre dado ya existe para un ciclo específico
-    boolean existsByNameAndCycle_Uuid(String name, UUID cycleUuid);
+    // Método para verificar si un grupo con un nombre dado ya existe para un ciclo y periodo específicos
+    boolean existsByNameAndCycle_UuidAndPeriod_Uuid(String name, UUID cycleUuid, UUID periodUuid);
 }

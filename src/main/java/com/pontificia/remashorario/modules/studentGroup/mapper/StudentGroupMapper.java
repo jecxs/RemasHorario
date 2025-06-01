@@ -2,6 +2,8 @@ package com.pontificia.remashorario.modules.studentGroup.mapper;
 
 import com.pontificia.remashorario.modules.cycle.CycleEntity;
 import com.pontificia.remashorario.modules.cycle.CycleService;
+import com.pontificia.remashorario.modules.period.PeriodEntity;
+import com.pontificia.remashorario.modules.period.PeriodService;
 import com.pontificia.remashorario.modules.studentGroup.StudentGroupEntity;
 import com.pontificia.remashorario.modules.studentGroup.dto.StudentGroupRequestDTO;
 import com.pontificia.remashorario.modules.studentGroup.dto.StudentGroupResponseDTO;
@@ -14,10 +16,12 @@ import java.util.stream.Collectors;
 public class StudentGroupMapper {
 
     private final CycleService cycleService;
+    private final PeriodService periodService;
     // private final CareerMapper careerMapper; // Solo si CycleResponseDTO en StudentGroupResponseDTO anida CareerResponseDTO
 
-    public StudentGroupMapper(CycleService cycleService) { // Solo inyectar CycleService si CareerMapper no se necesita aquí
+    public StudentGroupMapper(CycleService cycleService, PeriodService periodService) {
         this.cycleService = cycleService;
+        this.periodService = periodService;
         // this.careerMapper = careerMapper; // Si descomentas lo de arriba, descomenta esto también
     }
 
@@ -47,6 +51,8 @@ public class StudentGroupMapper {
                 .name(entity.getName())
                 .cycleUuid(entity.getCycle() != null ? entity.getCycle().getUuid() : null)
                 .cycleNumber(entity.getCycle() != null ? entity.getCycle().getNumber() : null)
+                .periodUuid(entity.getPeriod() != null ? entity.getPeriod().getUuid() : null)
+                .periodName(entity.getPeriod() != null ? entity.getPeriod().getName() : null)
                 // .cycle(cycleResponseDTO) // Si decides usar el DTO completo
                 .build();
     }
@@ -71,6 +77,9 @@ public class StudentGroupMapper {
         CycleEntity cycle = cycleService.findCycleOrThrow(requestDTO.getCycleUuid());
         entity.setCycle(cycle);
 
+        PeriodEntity period = periodService.findPeriodOrThrow(requestDTO.getPeriodUuid());
+        entity.setPeriod(period);
+
         return entity;
     }
 
@@ -94,6 +103,12 @@ public class StudentGroupMapper {
                 (entity.getCycle() == null || !requestDTO.getCycleUuid().equals(entity.getCycle().getUuid()))) {
             CycleEntity newCycle = cycleService.findCycleOrThrow(requestDTO.getCycleUuid());
             entity.setCycle(newCycle);
+        }
+
+        if (requestDTO.getPeriodUuid() != null &&
+                (entity.getPeriod() == null || !requestDTO.getPeriodUuid().equals(entity.getPeriod().getUuid()))) {
+            PeriodEntity newPeriod = periodService.findPeriodOrThrow(requestDTO.getPeriodUuid());
+            entity.setPeriod(newPeriod);
         }
     }
 

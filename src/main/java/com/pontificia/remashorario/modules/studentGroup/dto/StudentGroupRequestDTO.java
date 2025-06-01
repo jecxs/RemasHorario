@@ -18,4 +18,7 @@ public class StudentGroupRequestDTO {
 
     @NotNull(message = "El UUID del ciclo es obligatorio")
     private UUID cycleUuid;
+
+    @NotNull(message = "El UUID del periodo es obligatorio")
+    private UUID periodUuid;
 }
