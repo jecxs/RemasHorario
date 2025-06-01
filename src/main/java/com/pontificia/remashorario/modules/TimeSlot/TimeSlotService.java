@@ -48,6 +48,8 @@ public class TimeSlotService {
             throw new IllegalArgumentException("La duración total del turno no es un múltiplo exacto de la duración de la hora pedagógica. No se pueden encajar las horas pedagógicas sin dejar huecos.");
         }
 
+        validateNoOverlapOrDuplicate(requestDTO.getStartTime(), requestDTO.getEndTime(), null);
+
         TimeSlotEntity timeSlotEntity = timeSlotMapper.toTimeSlotEntity(requestDTO);
         generateTeachingHoursForTimeSlot(timeSlotEntity, pedagogicalHourDuration, totalSlotDurationMinutes);
 
@@ -91,6 +93,8 @@ public class TimeSlotService {
             throw new IllegalArgumentException("La duración total del turno no es un múltiplo exacto de la duración de la hora pedagógica. No se pueden encajar las horas pedagógicas sin dejar huecos.");
         }
 
+        validateNoOverlapOrDuplicate(requestDTO.getStartTime(), requestDTO.getEndTime(), id);
+
         existingTimeSlot.setName(requestDTO.getName());
         existingTimeSlot.setStartTime(requestDTO.getStartTime());
         existingTimeSlot.setEndTime(requestDTO.getEndTime());
@@ -123,6 +127,22 @@ public class TimeSlotService {
             // La relación bidireccional se establece al añadir a la lista del TimeSlotEntity
             timeSlotEntity.addTeachingHour(teachingHour); // Usa el helper para asegurar la relación bidireccional
             currentStartTime = endTime;
+        }
+    }
+
+    private void validateNoOverlapOrDuplicate(LocalTime startTime, LocalTime endTime, UUID excludeId) {
+        timeSlotRepository.findByStartTimeAndEndTime(startTime, endTime)
+                .filter(ts -> excludeId == null || !ts.getUuid().equals(excludeId))
+                .ifPresent(ts -> {
+                    throw new IllegalArgumentException("Ya existe un turno con el mismo rango horario.");
+                });
+
+        List<TimeSlotEntity> overlapping = timeSlotRepository.findOverlapping(startTime, endTime);
+        if (excludeId != null) {
+            overlapping.removeIf(ts -> ts.getUuid().equals(excludeId));
+        }
+        if (!overlapping.isEmpty()) {
+            throw new IllegalArgumentException("El rango horario se solapa con un turno existente.");
         }
     }
 
