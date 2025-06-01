@@ -13,4 +13,9 @@ import java.util.UUID;
 @Repository
 public interface TimeSlotRepository extends JpaRepository<TimeSlotEntity, UUID> {
 
+    Optional<TimeSlotEntity> findByStartTimeAndEndTime(LocalTime startTime, LocalTime endTime);
+
+    @Query("SELECT ts FROM TimeSlotEntity ts WHERE ts.startTime < :endTime AND ts.endTime > :startTime")
+    List<TimeSlotEntity> findOverlapping(@Param("startTime") LocalTime startTime,
+                                         @Param("endTime") LocalTime endTime);
 }

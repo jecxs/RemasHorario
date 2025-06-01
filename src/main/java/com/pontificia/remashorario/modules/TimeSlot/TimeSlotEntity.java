@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "time_slot")
+@Table(name = "time_slot",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"start_time", "end_time"}))
 @Getter
 @Setter
 public class TimeSlotEntity extends BaseEntity {
