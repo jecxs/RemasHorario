@@ -36,12 +36,12 @@ public class CourseController {
         );
     }
 
-    @GetMapping("/department/{departmentUuid}")
-    public ResponseEntity<ApiResponse<List<CourseResponseDTO>>> getCoursesByDepartment(
-            @PathVariable UUID departmentUuid) {
-        List<CourseResponseDTO> courses = courseService.getCoursesByDepartment(departmentUuid);
+    @GetMapping("/knowledge-area/{knowledgeAreaUuid}")
+    public ResponseEntity<ApiResponse<List<CourseResponseDTO>>> getCoursesByKnowledgeArea(
+            @PathVariable UUID knowledgeAreaUuid) {
+        List<CourseResponseDTO> courses = courseService.getCoursesByKnowledgeArea(knowledgeAreaUuid);
         return ResponseEntity.ok(
-                ApiResponse.success(courses, "Cursos del departamento recuperados con éxito")
+                ApiResponse.success(courses, "Cursos del área recuperados con éxito")
         );
     }
 
@@ -68,14 +68,14 @@ public class CourseController {
             @RequestParam(required = false) UUID modalityUuid,
             @RequestParam(required = false) UUID careerUuid,
             @RequestParam(required = false) UUID cycleUuid,
-            @RequestParam(required = false) UUID departmentUuid,
+            @RequestParam(required = false) UUID knowledgeAreaUuid,
             @RequestParam(required = false) String courseName) {
 
         CourseFilterDTO filters = CourseFilterDTO.builder()
                 .modalityUuid(modalityUuid)
                 .careerUuid(careerUuid)
                 .cycleUuid(cycleUuid)
-                .departmentUuid(departmentUuid)
+                .knowledgeAreaUuid(knowledgeAreaUuid)
                 .courseName(courseName)
                 .build();
 

@@ -3,6 +3,9 @@ package com.pontificia.remashorario.modules.learningSpace.mapper;
 import com.pontificia.remashorario.modules.learningSpace.LearningSpaceEntity;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceRequestDTO;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceResponseDTO;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.LearningSpaceSpecialtyEntity;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.LearningSpaceSpecialtyService;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.dto.LearningSpaceSpecialtyResponseDTO;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeEntity;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeService;
 import com.pontificia.remashorario.modules.teachingType.dto.TeachingTypeResponseDTO;
@@ -15,9 +18,12 @@ import java.util.stream.Collectors;
 public class LearningSpaceMapper {
 
     private final TeachingTypeService teachingTypeService;
+    private final LearningSpaceSpecialtyService specialtyService;
 
-    public LearningSpaceMapper(TeachingTypeService teachingTypeService) {
+    public LearningSpaceMapper(TeachingTypeService teachingTypeService,
+                               LearningSpaceSpecialtyService specialtyService) {
         this.teachingTypeService = teachingTypeService;
+        this.specialtyService = specialtyService;
     }
 
     /**
@@ -32,7 +38,16 @@ public class LearningSpaceMapper {
                 .uuid(entity.getUuid())
                 .name(entity.getName())
                 .capacity(entity.getCapacity())
-                .teachingType(TeachingTypeResponseDTO.builder().build())
+                .teachingType(TeachingTypeResponseDTO.builder()
+                        .uuid(entity.getTypeUUID().getUuid())
+                        .name(entity.getTypeUUID().getName().name())
+                        .build())
+                .specialty(entity.getSpecialty() != null ?
+                        LearningSpaceSpecialtyResponseDTO.builder()
+                                .uuid(entity.getSpecialty().getUuid())
+                                .name(entity.getSpecialty().getName())
+                                .description(entity.getSpecialty().getDescription())
+                                .build() : null)
                 .build();
     }
 
@@ -51,6 +66,13 @@ public class LearningSpaceMapper {
         TeachingTypeEntity type = teachingTypeService.findOrThrow(requestDTO.getTypeUUID());
         entity.setTypeUUID(type);
 
+        if (requestDTO.getSpecialtyUuid() != null) {
+            LearningSpaceSpecialtyEntity specialty = specialtyService.findSpecialtyOrThrow(requestDTO.getSpecialtyUuid());
+            entity.setSpecialty(specialty);
+        } else {
+            entity.setSpecialty(null);
+        }
+
         return entity;
     }
 
@@ -67,6 +89,13 @@ public class LearningSpaceMapper {
 
         TeachingTypeEntity type = teachingTypeService.findOrThrow(requestDTO.getTypeUUID());
         entity.setTypeUUID(type);
+
+        if (requestDTO.getSpecialtyUuid() != null) {
+            LearningSpaceSpecialtyEntity specialty = specialtyService.findSpecialtyOrThrow(requestDTO.getSpecialtyUuid());
+            entity.setSpecialty(specialty);
+        } else {
+            entity.setSpecialty(null);
+        }
     }
 
     /**

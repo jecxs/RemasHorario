@@ -1,7 +1,9 @@
 package com.pontificia.remashorario.modules.course.mapper;
 
-import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentEntity;
-import com.pontificia.remashorario.modules.academicDepartment.dto.AcademicDepartmentResponseDTO;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.LearningSpaceSpecialtyEntity;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.dto.LearningSpaceSpecialtyResponseDTO;
+import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaEntity;
+import com.pontificia.remashorario.modules.KnowledgeArea.dto.KnowledgeAreaResponseDTO;
 import com.pontificia.remashorario.modules.career.dto.CareerResponseDTO;
 import com.pontificia.remashorario.modules.course.CourseEntity;
 import com.pontificia.remashorario.modules.course.dto.CourseRequestDTO;
@@ -34,14 +36,22 @@ public class CourseMapper {
         return CourseResponseDTO.builder()
                 .uuid(entity.getUuid())
                 .name(entity.getName())
-                .weeklyHours(entity.getWeeklyHours())
+                .code(entity.getCode())
+                .weeklyTheoryHours(entity.getWeeklyTheoryHours())
+                .weeklyPracticeHours(entity.getWeeklyPracticeHours())
                 .teachingTypes(teachingTypeMapper.toResponseDTOList(
                         entity.getTeachingTypes().stream().toList()))
-                .department(entity.getDepartment() != null ?
-                        AcademicDepartmentResponseDTO.builder()
-                                .uuid(entity.getDepartment().getUuid())
-                                .name(entity.getDepartment().getName())
-                                .code(entity.getDepartment().getCode())
+                .teachingKnowledgeArea(entity.getTeachingKnowledgeArea() != null ?
+                        KnowledgeAreaResponseDTO.builder()
+                                .uuid(entity.getTeachingKnowledgeArea().getUuid())
+                                .name(entity.getTeachingKnowledgeArea().getName())
+                                .description(entity.getTeachingKnowledgeArea().getDescription())
+                                .build() : null)
+                .preferredSpecialty(entity.getPreferredSpecialty() != null ?
+                        LearningSpaceSpecialtyResponseDTO.builder()
+                                .uuid(entity.getPreferredSpecialty().getUuid())
+                                .name(entity.getPreferredSpecialty().getName())
+                                .description(entity.getPreferredSpecialty().getDescription())
                                 .build() : null)
                 .cycle(CycleResponseDTO.builder()
                         .uuid(entity.getCycle().getUuid())
@@ -66,29 +76,37 @@ public class CourseMapper {
     }
 
     public CourseEntity toEntity(CourseRequestDTO dto, CycleEntity cycle,
-                                 AcademicDepartmentEntity department,
+                                 KnowledgeAreaEntity knowledgeArea,
+                                 LearningSpaceSpecialtyEntity specialty,
                                  Set<TeachingTypeEntity> teachingTypes) {
         if (dto == null) return null;
 
         CourseEntity entity = new CourseEntity();
         entity.setName(dto.getName());
-        entity.setWeeklyHours(dto.getWeeklyHours());
+        entity.setCode(dto.getCode());
+        entity.setWeeklyTheoryHours(dto.getWeeklyTheoryHours());
+        entity.setWeeklyPracticeHours(dto.getWeeklyPracticeHours());
         entity.setCycle(cycle);
-        entity.setDepartment(department);
+        entity.setTeachingKnowledgeArea(knowledgeArea);
+        entity.setPreferredSpecialty(specialty);
         entity.setTeachingTypes(teachingTypes);
 
         return entity;
     }
 
     public void updateEntityFromDTO(CourseEntity entity, CourseRequestDTO dto,
-                                    CycleEntity cycle, AcademicDepartmentEntity department,
+                                    CycleEntity cycle, KnowledgeAreaEntity knowledgeArea,
+                                    LearningSpaceSpecialtyEntity specialty,
                                     Set<TeachingTypeEntity> teachingTypes) {
         if (entity == null || dto == null) return;
 
         entity.setName(dto.getName());
-        entity.setWeeklyHours(dto.getWeeklyHours());
+        entity.setCode(dto.getCode());
+        entity.setWeeklyTheoryHours(dto.getWeeklyTheoryHours());
+        entity.setWeeklyPracticeHours(dto.getWeeklyPracticeHours());
         entity.setCycle(cycle);
-        entity.setDepartment(department);
+        entity.setTeachingKnowledgeArea(knowledgeArea);
+        entity.setPreferredSpecialty(specialty);
         entity.setTeachingTypes(teachingTypes);
     }
 }

@@ -23,4 +23,6 @@ public class LearningSpaceRequestDTO {
 
     @NotNull(message = "El ID del tipo de Aula es obligatorio")
     private UUID typeUUID;
+
+    private UUID specialtyUuid;
 }

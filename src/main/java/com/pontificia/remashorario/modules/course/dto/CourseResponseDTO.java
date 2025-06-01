@@ -1,7 +1,8 @@
 package com.pontificia.remashorario.modules.course.dto;
 
 
-import com.pontificia.remashorario.modules.academicDepartment.dto.AcademicDepartmentResponseDTO;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.dto.LearningSpaceSpecialtyResponseDTO;
+import com.pontificia.remashorario.modules.KnowledgeArea.dto.KnowledgeAreaResponseDTO;
 import com.pontificia.remashorario.modules.career.dto.CareerResponseDTO;
 import com.pontificia.remashorario.modules.cycle.dto.CycleResponseDTO;
 import com.pontificia.remashorario.modules.educationalModality.dto.EducationalModalityResponseDTO;
@@ -20,9 +21,12 @@ import java.util.UUID;
 public class CourseResponseDTO {
     private UUID uuid;
     private String name;
-    private Integer weeklyHours;
+    private String code;
+    private Integer weeklyTheoryHours;
+    private Integer weeklyPracticeHours;
     private List<TeachingTypeResponseDTO> teachingTypes;
-    private AcademicDepartmentResponseDTO department;
+    private KnowledgeAreaResponseDTO teachingKnowledgeArea;
+    private LearningSpaceSpecialtyResponseDTO preferredSpecialty;
     private CycleResponseDTO cycle;
     private CareerResponseDTO career;
     private EducationalModalityResponseDTO modality;
