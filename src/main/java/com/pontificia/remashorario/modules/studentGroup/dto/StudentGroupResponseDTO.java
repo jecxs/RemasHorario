@@ -15,6 +15,8 @@ public class StudentGroupResponseDTO {
     private String name;
     private UUID cycleUuid; // Agregamos el UUID del ciclo
     private Integer cycleNumber; // Agregamos el número del ciclo para fácil visualización
+    private UUID periodUuid;
+    private String periodName;
     // Si realmente necesitas el DTO completo del ciclo, puedes usar:
     // private CycleResponseDTO cycle;
 }

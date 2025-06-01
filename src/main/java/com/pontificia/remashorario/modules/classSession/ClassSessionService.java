@@ -111,6 +111,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         // Crear y guardar
         ClassSessionEntity session = classSessionMapper.toEntity(
                 dto, studentGroup, course, teacher, learningSpace, sessionType, teachingHours);
+        session.setPeriod(studentGroup.getPeriod());
         ClassSessionEntity savedSession = save(session);
 
         return classSessionMapper.toResponseDTO(savedSession);
@@ -139,6 +140,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         // Actualizar
         classSessionMapper.updateEntityFromDTO(
                 session, dto, studentGroup, course, teacher, learningSpace, sessionType, teachingHours);
+        session.setPeriod(studentGroup.getPeriod());
         ClassSessionEntity updatedSession = save(session);
 
         return classSessionMapper.toResponseDTO(updatedSession);

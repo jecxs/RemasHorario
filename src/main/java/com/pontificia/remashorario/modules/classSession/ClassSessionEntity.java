@@ -6,6 +6,7 @@ import com.pontificia.remashorario.modules.studentGroup.StudentGroupEntity;
 import com.pontificia.remashorario.modules.teacher.TeacherEntity;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeEntity;
+import com.pontificia.remashorario.modules.period.PeriodEntity;
 import com.pontificia.remashorario.utils.abstractBase.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -36,6 +37,10 @@ public class ClassSessionEntity extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "learning_space_id", nullable = false)
     private LearningSpaceEntity learningSpace;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "period_id", nullable = false)
+    private PeriodEntity period;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

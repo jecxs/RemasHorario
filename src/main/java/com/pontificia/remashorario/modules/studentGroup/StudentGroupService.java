@@ -3,6 +3,7 @@ package com.pontificia.remashorario.modules.studentGroup;
 import com.pontificia.remashorario.modules.studentGroup.dto.StudentGroupRequestDTO;
 import com.pontificia.remashorario.modules.studentGroup.dto.StudentGroupResponseDTO;
 import com.pontificia.remashorario.modules.studentGroup.mapper.StudentGroupMapper;
+import com.pontificia.remashorario.modules.period.PeriodService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,15 @@ public class StudentGroupService extends BaseService<StudentGroupEntity> {
 
     private final StudentGroupMapper studentGroupMapper;
     private final StudentGroupRepository studentGroupRepository; // Inyectar el repositorio directamente si necesitas métodos personalizados
+    private final PeriodService periodService;
 
-    public StudentGroupService(StudentGroupRepository studentGroupRepository, StudentGroupMapper studentGroupMapper) {
-        super(studentGroupRepository); // Pasa el repositorio a la clase base
+    public StudentGroupService(StudentGroupRepository studentGroupRepository,
+                               StudentGroupMapper studentGroupMapper,
+                               PeriodService periodService) {
+        super(studentGroupRepository);
         this.studentGroupMapper = studentGroupMapper;
         this.studentGroupRepository = studentGroupRepository;
+        this.periodService = periodService;
     }
 
     /**
@@ -42,9 +47,10 @@ public class StudentGroupService extends BaseService<StudentGroupEntity> {
      */
     @Transactional
     public StudentGroupResponseDTO createStudentGroup(StudentGroupRequestDTO requestDTO) {
-        // Validar si ya existe un grupo con el mismo nombre para el ciclo dado
-        if (studentGroupRepository.existsByNameAndCycle_Uuid(requestDTO.getName(), requestDTO.getCycleUuid())) {
-            throw new IllegalArgumentException("Ya existe un grupo con el nombre '" + requestDTO.getName() + "' para el ciclo especificado.");
+        // Validar si ya existe un grupo con el mismo nombre para el ciclo y periodo dados
+        if (studentGroupRepository.existsByNameAndCycle_UuidAndPeriod_Uuid(
+                requestDTO.getName(), requestDTO.getCycleUuid(), requestDTO.getPeriodUuid())) {
+            throw new IllegalArgumentException("Ya existe un grupo con el nombre '" + requestDTO.getName() + "' para el ciclo y periodo especificados.");
         }
 
         StudentGroupEntity studentGroup = studentGroupMapper.toEntity(requestDTO);
@@ -67,11 +73,13 @@ public class StudentGroupService extends BaseService<StudentGroupEntity> {
     public StudentGroupResponseDTO updateStudentGroup(UUID uuid, StudentGroupRequestDTO requestDTO) {
         StudentGroupEntity existingStudentGroup = findOrThrow(uuid); // findOrThrow viene de BaseService
 
-        // Validar si el nombre ha cambiado y si ya existe otro grupo con ese nombre para el mismo ciclo
+        // Validar si el nombre o el ciclo/período cambiaron y si ya existe otro grupo con esos datos
         if (!requestDTO.getName().equals(existingStudentGroup.getName()) ||
-                !requestDTO.getCycleUuid().equals(existingStudentGroup.getCycle().getUuid())) {
-            if (studentGroupRepository.existsByNameAndCycle_Uuid(requestDTO.getName(), requestDTO.getCycleUuid())) {
-                throw new IllegalArgumentException("Ya existe otro grupo con el nombre '" + requestDTO.getName() + "' para el ciclo especificado.");
+                !requestDTO.getCycleUuid().equals(existingStudentGroup.getCycle().getUuid()) ||
+                !requestDTO.getPeriodUuid().equals(existingStudentGroup.getPeriod().getUuid())) {
+            if (studentGroupRepository.existsByNameAndCycle_UuidAndPeriod_Uuid(
+                    requestDTO.getName(), requestDTO.getCycleUuid(), requestDTO.getPeriodUuid())) {
+                throw new IllegalArgumentException("Ya existe otro grupo con el nombre '" + requestDTO.getName() + "' para el ciclo y periodo especificados.");
             }
         }
 
