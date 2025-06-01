@@ -16,15 +16,24 @@ public class CourseRequestDTO {
     @NotBlank(message = "El nombre del curso es obligatorio")
     private String name;
 
-    @NotNull(message = "Las horas semanales son obligatorias")
-    @Min(value = 1, message = "El curso debe tener al menos 1 hora semanal")
-    private Integer weeklyHours;
+    @NotBlank(message = "El código del curso es obligatorio")
+    private String code;
 
     @NotNull(message = "El ciclo es obligatorio")
     private UUID cycleUuid;
 
-    @NotNull(message = "El departamento académico es obligatorio")
-    private UUID departmentUuid;
+    @NotNull(message = "El área de conocimiento es obligatoria")
+    private UUID knowledgeAreaUuid;
+
+    @NotNull(message = "Las horas teóricas semanales son obligatorias")
+    @Min(value = 0, message = "Debe ser 0 o mayor")
+    private Integer weeklyTheoryHours;
+
+    @NotNull(message = "Las horas prácticas semanales son obligatorias")
+    @Min(value = 0, message = "Debe ser 0 o mayor")
+    private Integer weeklyPracticeHours;
+
+    private UUID preferredSpecialtyUuid;
 
     @NotEmpty(message = "Debe seleccionar al menos un tipo de enseñanza")
     private List<UUID> teachingTypeUuids;

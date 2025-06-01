@@ -13,7 +13,7 @@ public class CourseFilterDTO {
     private UUID modalityUuid;
     private UUID careerUuid;
     private UUID cycleUuid;
-    private UUID departmentUuid;
+    private UUID knowledgeAreaUuid;
     private String courseName;
 }
 

@@ -16,10 +16,11 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
     private final LearningSpaceMapper learningSpaceMapper;
     private final LearningSpaceRepository learningSpaceRepository;
 
-    public LearningSpaceService(LearningSpaceRepository learningSpaceRepository, LearningSpaceMapper learningSpaceMapper, LearningSpaceRepository learningSpaceRepository1) {
+    public LearningSpaceService(LearningSpaceRepository learningSpaceRepository,
+                               LearningSpaceMapper learningSpaceMapper) {
         super(learningSpaceRepository);
         this.learningSpaceMapper = learningSpaceMapper;
-        this.learningSpaceRepository = learningSpaceRepository1;
+        this.learningSpaceRepository = learningSpaceRepository;
     }
 
     /**

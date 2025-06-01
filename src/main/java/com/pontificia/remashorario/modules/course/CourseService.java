@@ -1,7 +1,9 @@
 package com.pontificia.remashorario.modules.course;
 
-import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentEntity;
-import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentService;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.LearningSpaceSpecialtyEntity;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.LearningSpaceSpecialtyService;
+import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaEntity;
+import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaService;
 import com.pontificia.remashorario.modules.course.dto.CourseFilterDTO;
 import com.pontificia.remashorario.modules.course.dto.CourseRequestDTO;
 import com.pontificia.remashorario.modules.course.dto.CourseResponseDTO;
@@ -29,20 +31,23 @@ public class CourseService extends BaseService<CourseEntity> {
     private final CourseMapper courseMapper;
     private final TeachingTypeService teachingTypeService;
     private final CycleService cycleService;
-    private final AcademicDepartmentService departmentService;
+    private final KnowledgeAreaService knowledgeAreaService;
+    private final LearningSpaceSpecialtyService specialtyService;
 
     @Autowired
     public CourseService(CourseRepository courseRepository,
                          CourseMapper courseMapper,
                          TeachingTypeService teachingTypeService,
                          CycleService cycleService,
-                         AcademicDepartmentService departmentService) {
+                         KnowledgeAreaService knowledgeAreaService,
+                         LearningSpaceSpecialtyService specialtyService) {
         super(courseRepository);
         this.courseRepository = courseRepository;
         this.courseMapper = courseMapper;
         this.teachingTypeService = teachingTypeService;
         this.cycleService = cycleService;
-        this.departmentService = departmentService;
+        this.knowledgeAreaService = knowledgeAreaService;
+        this.specialtyService = specialtyService;
     }
 
     public List<CourseResponseDTO> getAllCourses() {
@@ -69,11 +74,15 @@ public class CourseService extends BaseService<CourseEntity> {
 
         // Obtener las entidades relacionadas
         CycleEntity cycle = cycleService.findCycleOrThrow(courseDTO.getCycleUuid());
-        AcademicDepartmentEntity department = departmentService.findDepartmentOrThrow(courseDTO.getDepartmentUuid());
+        KnowledgeAreaEntity knowledgeArea = knowledgeAreaService.findKnowledgeAreaOrThrow(courseDTO.getKnowledgeAreaUuid());
+        LearningSpaceSpecialtyEntity specialty = null;
+        if (courseDTO.getPreferredSpecialtyUuid() != null) {
+            specialty = specialtyService.findSpecialtyOrThrow(courseDTO.getPreferredSpecialtyUuid());
+        }
         Set<TeachingTypeEntity> teachingTypes = getTeachingTypesFromUuids(courseDTO.getTeachingTypeUuids());
 
         // Crear y guardar el curso
-        CourseEntity course = courseMapper.toEntity(courseDTO, cycle, department, teachingTypes);
+        CourseEntity course = courseMapper.toEntity(courseDTO, cycle, knowledgeArea, specialty, teachingTypes);
         CourseEntity savedCourse = save(course);
 
         return courseMapper.toResponseDTO(savedCourse);
@@ -94,11 +103,15 @@ public class CourseService extends BaseService<CourseEntity> {
 
         // Obtener las entidades relacionadas
         CycleEntity cycle = cycleService.findCycleOrThrow(courseDTO.getCycleUuid());
-        AcademicDepartmentEntity department = departmentService.findDepartmentOrThrow(courseDTO.getDepartmentUuid());
+        KnowledgeAreaEntity knowledgeArea = knowledgeAreaService.findKnowledgeAreaOrThrow(courseDTO.getKnowledgeAreaUuid());
+        LearningSpaceSpecialtyEntity specialty = null;
+        if (courseDTO.getPreferredSpecialtyUuid() != null) {
+            specialty = specialtyService.findSpecialtyOrThrow(courseDTO.getPreferredSpecialtyUuid());
+        }
         Set<TeachingTypeEntity> teachingTypes = getTeachingTypesFromUuids(courseDTO.getTeachingTypeUuids());
 
         // Actualizar el curso
-        courseMapper.updateEntityFromDTO(course, courseDTO, cycle, department, teachingTypes);
+        courseMapper.updateEntityFromDTO(course, courseDTO, cycle, knowledgeArea, specialty, teachingTypes);
         CourseEntity updatedCourse = save(course);
 
         return courseMapper.toResponseDTO(updatedCourse);
@@ -118,9 +131,8 @@ public class CourseService extends BaseService<CourseEntity> {
             } else {
                 courses = courseRepository.findByModalityUuid(filters.getModalityUuid());
             }
-        } else if (filters.getDepartmentUuid() != null) {
-            // Nuevo filtro por departamento
-            courses = courseRepository.findByDepartmentUuid(filters.getDepartmentUuid());
+        } else if (filters.getKnowledgeAreaUuid() != null) {
+            courses = courseRepository.findByKnowledgeAreaUuid(filters.getKnowledgeAreaUuid());
         } else {
             courses = findAll();
         }
@@ -137,10 +149,10 @@ public class CourseService extends BaseService<CourseEntity> {
     }
 
     /**
-     * Obtiene cursos por departamento académico
+     * Obtiene cursos por área de conocimiento
      */
-    public List<CourseResponseDTO> getCoursesByDepartment(UUID departmentUuid) {
-        List<CourseEntity> courses = courseRepository.findByDepartmentUuid(departmentUuid);
+    public List<CourseResponseDTO> getCoursesByKnowledgeArea(UUID knowledgeAreaUuid) {
+        List<CourseEntity> courses = courseRepository.findByKnowledgeAreaUuid(knowledgeAreaUuid);
         return courseMapper.toResponseDTOList(courses);
     }
 

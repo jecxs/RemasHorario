@@ -1,6 +1,7 @@
 package com.pontificia.remashorario.modules.learningSpace;
 
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeEntity;
+import com.pontificia.remashorario.modules.learningSpaceSpecialty.LearningSpaceSpecialtyEntity;
 import com.pontificia.remashorario.utils.abstractBase.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -20,4 +21,11 @@ public class LearningSpaceEntity extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "type_uuid", referencedColumnName = "uuid")
     private TeachingTypeEntity typeUUID;
+
+    /**
+     * Especialidad de laboratorio asociada. Puede ser nula para aulas teóricas.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "specialty_id", referencedColumnName = "uuid")
+    private LearningSpaceSpecialtyEntity specialty;
 }
