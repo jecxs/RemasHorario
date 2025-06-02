@@ -11,6 +11,7 @@ import com.pontificia.remashorario.modules.teacher.dto.TeacherUpdateDTO;
 import com.pontificia.remashorario.modules.teacher.mapper.TeacherMapper;
 
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherWithAvailabilitiesDTO;
+import com.pontificia.remashorario.modules.user.UserService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
 import jakarta.persistence.EntityNotFoundException;
 
@@ -28,17 +29,20 @@ public class TeacherService extends BaseService<TeacherEntity> {
     private final TeacherMapper teacherMapper;
     private final AcademicDepartmentService departmentService;
     private final KnowledgeAreaService knowledgeAreaService;
+    private final UserService userService;
 
     @Autowired
     public TeacherService(TeacherRepository teacherRepository,
                           TeacherMapper teacherMapper,
                           AcademicDepartmentService departmentService,
-                          KnowledgeAreaService knowledgeAreaService) {
+                          KnowledgeAreaService knowledgeAreaService,
+                          UserService userService) {
         super(teacherRepository);
         this.teacherRepository = teacherRepository;
         this.teacherMapper = teacherMapper;
         this.departmentService = departmentService;
         this.knowledgeAreaService = knowledgeAreaService;
+        this.userService = userService;
     }
 
     public List<TeacherResponseDTO> getAllTeachers() {
@@ -79,6 +83,9 @@ public class TeacherService extends BaseService<TeacherEntity> {
         // Crear y guardar
         TeacherEntity teacher = teacherMapper.toEntity(dto, department, knowledgeAreas);
         TeacherEntity savedTeacher = save(teacher);
+
+        // Crear cuenta de usuario para el docente con contraseña por defecto
+        userService.createTeacherUser(savedTeacher, "cambio123");
 
         return teacherMapper.toResponseDTO(savedTeacher);
     }
