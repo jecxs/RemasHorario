@@ -6,11 +6,13 @@ import com.pontificia.remashorario.modules.cycle.CycleEntity;
 import com.pontificia.remashorario.modules.cycle.dto.CycleResponseDTO;
 import com.pontificia.remashorario.modules.educationalModality.EducationalModalityEntity;
 import com.pontificia.remashorario.modules.educationalModality.dto.EducationalModalityResponseDTO;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Component
 public class CareerMapper {
 
     /**

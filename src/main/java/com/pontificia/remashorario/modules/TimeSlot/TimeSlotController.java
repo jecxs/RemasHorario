@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/timeslots") // Ruta base para los turnos
+@RequestMapping("/api/protected/timeslots") // Ruta base para los turnos
 public class TimeSlotController {
 
     private final TimeSlotService timeSlotService;

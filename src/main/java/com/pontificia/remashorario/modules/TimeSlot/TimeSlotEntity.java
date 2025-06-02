@@ -5,6 +5,8 @@ import com.pontificia.remashorario.utils.abstractBase.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -16,19 +18,21 @@ import java.util.List;
 @Getter
 @Setter
 public class TimeSlotEntity extends BaseEntity {
+
     @Column(name = "name", nullable = false, length = 10)
     private String name;
 
+    @JdbcTypeCode(SqlTypes.TIME)
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
+    @JdbcTypeCode(SqlTypes.TIME)
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
     @OneToMany(mappedBy = "timeSlot", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<TeachingHourEntity> teachingHours = new ArrayList<>();
 
-    // Helper method to manage bidirectional relationship if needed (optional here as TeachingHour sets TimeSlot)
     public void addTeachingHour(TeachingHourEntity teachingHour) {
         teachingHours.add(teachingHour);
         teachingHour.setTimeSlot(this);
