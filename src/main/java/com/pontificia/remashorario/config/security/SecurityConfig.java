@@ -34,6 +34,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/protected/**").hasRole("COORDINATOR")
+                        // Allow teachers to manage only their availability endpoints
+                        .requestMatchers("/api/protected/teachers/**/availabilities/**").hasRole("TEACHER")
+                        // Other protected endpoints are reserved for coordinators or assistants
+                        .requestMatchers("/api/protected/**").hasAnyRole("COORDINATOR", "ASSISTANT")
                         .anyRequest().authenticated()
                 )
                 .userDetailsService(userService)
