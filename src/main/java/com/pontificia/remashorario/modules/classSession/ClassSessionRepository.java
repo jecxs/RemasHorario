@@ -41,10 +41,12 @@ public interface ClassSessionRepository extends BaseRepository<ClassSessionEntit
             "JOIN cs.teachingHours th " +
             "WHERE cs.teacher.uuid = :teacherUuid " +
             "AND cs.dayOfWeek = :dayOfWeek " +
+            "AND cs.period.uuid = :periodUuid " +
             "AND th.uuid IN :teachingHourUuids")
     List<ClassSessionEntity> findTeacherConflicts(
             @Param("teacherUuid") UUID teacherUuid,
             @Param("dayOfWeek") DayOfWeek dayOfWeek,
+            @Param("periodUuid") UUID periodUuid,
             @Param("teachingHourUuids") List<UUID> teachingHourUuids);
 
     // Verificar conflictos de aula
@@ -52,10 +54,12 @@ public interface ClassSessionRepository extends BaseRepository<ClassSessionEntit
             "JOIN cs.teachingHours th " +
             "WHERE cs.learningSpace.uuid = :learningSpaceUuid " +
             "AND cs.dayOfWeek = :dayOfWeek " +
+            "AND cs.period.uuid = :periodUuid " +
             "AND th.uuid IN :teachingHourUuids")
     List<ClassSessionEntity> findLearningSpaceConflicts(
             @Param("learningSpaceUuid") UUID learningSpaceUuid,
             @Param("dayOfWeek") DayOfWeek dayOfWeek,
+            @Param("periodUuid") UUID periodUuid,
             @Param("teachingHourUuids") List<UUID> teachingHourUuids);
 
     // Verificar conflictos de grupo
@@ -63,10 +67,12 @@ public interface ClassSessionRepository extends BaseRepository<ClassSessionEntit
             "JOIN cs.teachingHours th " +
             "WHERE cs.studentGroup.uuid = :studentGroupUuid " +
             "AND cs.dayOfWeek = :dayOfWeek " +
+            "AND cs.period.uuid = :periodUuid " +
             "AND th.uuid IN :teachingHourUuids")
     List<ClassSessionEntity> findStudentGroupConflicts(
             @Param("studentGroupUuid") UUID studentGroupUuid,
             @Param("dayOfWeek") DayOfWeek dayOfWeek,
+            @Param("periodUuid") UUID periodUuid,
             @Param("teachingHourUuids") List<UUID> teachingHourUuids);
 
     // Buscar por ciclo (útil para reportes)

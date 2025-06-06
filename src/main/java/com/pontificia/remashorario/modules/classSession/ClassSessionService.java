@@ -106,7 +106,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         validateTeacherAvailability(teacher, dto.getDayOfWeek(), teachingHours);
 
         // Validar conflictos
-        validateNoConflicts(dto, teachingHours);
+        validateNoConflicts(dto, studentGroup.getPeriod().getUuid(), teachingHours);
 
         // Crear y guardar
         ClassSessionEntity session = classSessionMapper.toEntity(
@@ -135,7 +135,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
 
         Set<TeachingHourEntity> teachingHours = getAndValidateTeachingHours(dto.getTeachingHourUuids());
         validateTeacherAvailability(teacher, dto.getDayOfWeek(), teachingHours);
-        validateNoConflicts(dto, teachingHours, uuid); // Excluir la sesión actual
+        validateNoConflicts(dto, studentGroup.getPeriod().getUuid(), teachingHours, uuid); // Excluir la sesión actual
 
         // Actualizar
         classSessionMapper.updateEntityFromDTO(
@@ -262,18 +262,18 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         }
     }
 
-    private void validateNoConflicts(ClassSessionRequestDTO dto, Set<TeachingHourEntity> teachingHours) {
-        validateNoConflicts(dto, teachingHours, null);
+    private void validateNoConflicts(ClassSessionRequestDTO dto, UUID periodUuid, Set<TeachingHourEntity> teachingHours) {
+        validateNoConflicts(dto, periodUuid, teachingHours, null);
     }
 
-    private void validateNoConflicts(ClassSessionRequestDTO dto, Set<TeachingHourEntity> teachingHours, UUID excludeSessionUuid) {
+    private void validateNoConflicts(ClassSessionRequestDTO dto, UUID periodUuid, Set<TeachingHourEntity> teachingHours, UUID excludeSessionUuid) {
         List<UUID> teachingHourUuids = teachingHours.stream()
                 .map(TeachingHourEntity::getUuid)
                 .collect(Collectors.toList());
 
         // Verificar conflictos de docente
         List<ClassSessionEntity> teacherConflicts = classSessionRepository.findTeacherConflicts(
-                dto.getTeacherUuid(), dto.getDayOfWeek(), teachingHourUuids);
+                dto.getTeacherUuid(), dto.getDayOfWeek(), periodUuid, teachingHourUuids);
         if (excludeSessionUuid != null) {
             teacherConflicts.removeIf(session -> session.getUuid().equals(excludeSessionUuid));
         }
@@ -283,7 +283,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
 
         // Verificar conflictos de aula
         List<ClassSessionEntity> spaceConflicts = classSessionRepository.findLearningSpaceConflicts(
-                dto.getLearningSpaceUuid(), dto.getDayOfWeek(), teachingHourUuids);
+                dto.getLearningSpaceUuid(), dto.getDayOfWeek(), periodUuid, teachingHourUuids);
         if (excludeSessionUuid != null) {
             spaceConflicts.removeIf(session -> session.getUuid().equals(excludeSessionUuid));
         }
@@ -293,7 +293,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
 
         // Verificar conflictos de grupo
         List<ClassSessionEntity> groupConflicts = classSessionRepository.findStudentGroupConflicts(
-                dto.getStudentGroupUuid(), dto.getDayOfWeek(), teachingHourUuids);
+                dto.getStudentGroupUuid(), dto.getDayOfWeek(), periodUuid, teachingHourUuids);
         if (excludeSessionUuid != null) {
             groupConflicts.removeIf(session -> session.getUuid().equals(excludeSessionUuid));
         }
