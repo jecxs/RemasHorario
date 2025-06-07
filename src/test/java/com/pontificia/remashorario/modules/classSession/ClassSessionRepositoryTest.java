@@ -106,7 +106,7 @@ class ClassSessionRepositoryTest {
         return cycleRepository.save(cycle);
     }
 
-    private CourseEntity createCourse(CycleEntity cycle, KnowledgeAreaEntity ka) {
+    private CourseEntity createCourse(CycleEntity cycle, KnowledgeAreaEntity ka, TeachingTypeEntity type) {
         CourseEntity course = new CourseEntity();
         course.setName("Course");
         course.setCode("C1");
@@ -114,7 +114,7 @@ class ClassSessionRepositoryTest {
         course.setTeachingKnowledgeArea(ka);
         course.setWeeklyTheoryHours(2);
         course.setWeeklyPracticeHours(0);
-        course.getTeachingTypes().add(createTeachingType());
+        course.getTeachingTypes().add(type);
         return courseRepository.save(course);
     }
 
@@ -178,9 +178,9 @@ class ClassSessionRepositoryTest {
         AcademicDepartmentEntity dept = createDepartment();
         KnowledgeAreaEntity ka = createKnowledgeArea(dept);
 
-        CourseEntity course = createCourse(cycle, ka);
-        TeacherEntity teacher = createTeacher(dept);
         TeachingTypeEntity type = createTeachingType();
+        CourseEntity course = createCourse(cycle, ka, type);
+        TeacherEntity teacher = createTeacher(dept);
         LearningSpaceEntity space = createLearningSpace(type);
         TeachingHourEntity th = createTeachingHour();
 
