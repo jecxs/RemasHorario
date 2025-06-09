@@ -42,7 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/protected/**").hasRole("COORDINATOR")
                         // Allow teachers to manage only their availability endpoints
                         // En lugar de "/api/protected/teachers/**/availabilities/**"
-                        .requestMatchers("/api/protected/teachers/{teacherUuid}/availabilities/**").hasRole("TEACHER")
+                        .requestMatchers("/api/protected/teachers/{teacherUuid}/availabilities/**").hasAnyRole("TEACHER", "ASSISTANT", "COORDINATOR")
                         // Other protected endpoints are reserved for coordinators or assistants
                         .requestMatchers("/api/protected/**").hasAnyRole("COORDINATOR", "ASSISTANT")
                         .anyRequest().authenticated()
@@ -62,7 +62,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:4200")); // o la URL donde sirva Angular
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization","Content-Type"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
