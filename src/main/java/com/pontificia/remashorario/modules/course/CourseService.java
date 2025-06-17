@@ -65,6 +65,10 @@ public class CourseService extends BaseService<CourseEntity> {
                 .orElseThrow(() -> new EntityNotFoundException("Course not found with ID: " + uuid));
     }
 
+    public java.util.List<CourseEntity> getCoursesByCycle(java.util.UUID cycleUuid) {
+        return courseRepository.findByCycleUuid(cycleUuid);
+    }
+
     @Transactional
     public CourseResponseDTO createCourse(CourseRequestDTO courseDTO) {
         // Verificar si ya existe un curso con el mismo nombre en el ciclo

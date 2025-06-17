@@ -16,5 +16,13 @@ public interface LearningSpaceRepository extends BaseRepository<LearningSpaceEnt
 
     List<LearningSpaceEntity> findByTypeUUID_NameAndCapacityGreaterThanEqual(TeachingTypeEntity.ETeachingType name, Integer capacidad);
 
+    /**
+     * Busca espacios filtrando por tipo de enseñanza y especialidad de laboratorio.
+     * Si la especialidad es nula, se obtendrán las aulas sin especialidad asignada.
+     */
+    List<LearningSpaceEntity> findByTypeUUID_NameAndSpecialty_Uuid(TeachingTypeEntity.ETeachingType name, java.util.UUID specialtyUuid);
+
+    List<LearningSpaceEntity> findByTypeUUID_NameAndSpecialtyIsNull(TeachingTypeEntity.ETeachingType name);
+
     boolean existsByName(String nombre);
 }
