@@ -91,6 +91,13 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
         return learningSpaceMapper.toResponseDTOList(espacios);
     }
 
+    public List<LearningSpaceEntity> findEntitiesByTypeAndSpecialty(TeachingTypeEntity.ETeachingType tipo, java.util.UUID specialtyUuid) {
+        if (specialtyUuid == null) {
+            return learningSpaceRepository.findByTypeUUID_NameAndSpecialtyIsNull(tipo);
+        }
+        return learningSpaceRepository.findByTypeUUID_NameAndSpecialty_Uuid(tipo, specialtyUuid);
+    }
+
     public boolean existsByName(String name) {
         return learningSpaceRepository.existsByName(name);
     }
