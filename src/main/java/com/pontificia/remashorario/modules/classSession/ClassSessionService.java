@@ -1,19 +1,25 @@
 package com.pontificia.remashorario.modules.classSession;
 
+import com.pontificia.remashorario.modules.TimeSlot.TimeSlotService;
 import com.pontificia.remashorario.modules.classSession.dto.*;
 import com.pontificia.remashorario.modules.classSession.mapper.ClassSessionMapper;
 import com.pontificia.remashorario.modules.course.CourseEntity;
 import com.pontificia.remashorario.modules.course.CourseService;
 import com.pontificia.remashorario.modules.learningSpace.LearningSpaceEntity;
 import com.pontificia.remashorario.modules.learningSpace.LearningSpaceService;
+import com.pontificia.remashorario.modules.learningSpace.mapper.LearningSpaceMapper;
 import com.pontificia.remashorario.modules.studentGroup.StudentGroupEntity;
 import com.pontificia.remashorario.modules.studentGroup.StudentGroupService;
 import com.pontificia.remashorario.modules.teacher.TeacherEntity;
 import com.pontificia.remashorario.modules.teacher.TeacherService;
+import com.pontificia.remashorario.modules.teacher.mapper.TeacherMapper;
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityEntity;
+import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityRepository;
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityService;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourRepository;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourService;
+import com.pontificia.remashorario.modules.teachingHour.mapper.TeachingHourMapper;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeEntity;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
@@ -38,7 +44,15 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
     private final LearningSpaceService learningSpaceService;
     private final TeachingTypeService teachingTypeService;
     private final TeacherAvailabilityService teacherAvailabilityService;
+    private final TeacherAvailabilityRepository teacherAvailabilityRepository;
     private final TeachingHourRepository teachingHourRepository;
+    private final TeachingHourService teachingHourService;
+
+    // Mappers necesarios
+    private final TeacherMapper teacherMapper;
+    private final LearningSpaceMapper learningSpaceMapper;
+    private final TeachingHourMapper teachingHourMapper;
+    private final TimeSlotService timeSlotService;
 
     @Autowired
     public ClassSessionService(ClassSessionRepository classSessionRepository,
@@ -49,7 +63,12 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
                                LearningSpaceService learningSpaceService,
                                TeachingTypeService teachingTypeService,
                                TeacherAvailabilityService teacherAvailabilityService,
-                               TeachingHourRepository teachingHourRepository) {
+                               TeacherAvailabilityRepository teacherAvailabilityRepository,
+                               TeachingHourRepository teachingHourRepository,
+                               TeachingHourService teachingHourService,
+                               TeacherMapper teacherMapper,
+                               LearningSpaceMapper learningSpaceMapper,
+                               TeachingHourMapper teachingHourMapper, TimeSlotService timeSlotService) {
         super(classSessionRepository);
         this.classSessionRepository = classSessionRepository;
         this.classSessionMapper = classSessionMapper;
@@ -59,7 +78,13 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         this.learningSpaceService = learningSpaceService;
         this.teachingTypeService = teachingTypeService;
         this.teacherAvailabilityService = teacherAvailabilityService;
+        this.teacherAvailabilityRepository = teacherAvailabilityRepository;
         this.teachingHourRepository = teachingHourRepository;
+        this.teachingHourService = teachingHourService;
+        this.teacherMapper = teacherMapper;
+        this.learningSpaceMapper = learningSpaceMapper;
+        this.teachingHourMapper = teachingHourMapper;
+        this.timeSlotService = timeSlotService;
     }
 
     public List<ClassSessionResponseDTO> getAllClassSessions() {
@@ -86,7 +111,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         if (courseUuid != null) {
             CourseEntity course = courseService.findCourseOrThrow(courseUuid);
             List<TeacherEntity> eligibleTeachers = teacherService.getTeachersByKnowledgeArea(
-                    course.getKnowledgeArea().getUuid());
+                    course.getTeachingKnowledgeArea().getUuid()); // CORREGIDO: era getKnowledgeArea()
             intelliSense.setEligibleTeachers(teacherMapper.toResponseDTOList(eligibleTeachers));
 
             // Filtrar aulas por tipo de sesión requerido
@@ -105,7 +130,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
 
         // Si se proporciona día y turno, filtrar horas disponibles
         if (dayOfWeek != null && timeSlotUuid != null) {
-            List<TeachingHourEntity> availableHours = teachingHourService.getAvailableHoursByTimeSlot(
+            List<TeachingHourEntity> availableHours = timeSlotService.getAvailableHoursByTimeSlot(
                     timeSlotUuid, dayOfWeek);
             intelliSense.setAvailableHours(teachingHourMapper.toResponseDTOList(availableHours));
         }
@@ -132,9 +157,9 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
             Set<TeachingHourEntity> hours = getAndValidateTeachingHours(dto.getTeachingHourUuids());
 
             // Validar compatibilidad docente-curso
-            if (!teacher.getKnowledgeAreas().contains(course.getKnowledgeArea())) {
+            if (!teacher.getKnowledgeAreas().contains(course.getTeachingKnowledgeArea())) {
                 warnings.add("El docente no tiene el área de conocimiento específica del curso");
-                suggestions.add("Considerar asignar un docente especializado en " + course.getKnowledgeArea().getName());
+                suggestions.add("Considerar asignar un docente especializado en " + course.getTeachingKnowledgeArea().getName());
             }
 
             // Validar disponibilidad del docente
@@ -155,7 +180,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
             boolean isTheoryOnlyClass = course.getWeeklyPracticeHours() == 0;
             boolean isPracticeClass = course.getWeeklyPracticeHours() > 0;
 
-            if (isPracticeClass && !"PRACTICE".equals(space.getTeachingType().getName())) {
+            if (isPracticeClass && !"PRACTICE".equals(space.getTypeUUID().getName().name())) {
                 warnings.add("Curso práctico asignado a aula teórica");
                 suggestions.add("Recomendado: Usar un laboratorio para mejor experiencia de aprendizaje");
                 severity = "MEDIUM";
@@ -172,7 +197,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
 
                 conflicts.forEach(conflict -> {
                     suggestions.add("Conflicto con: " + conflict.getCourse().getName() +
-                            " - " + conflict.getTeacher().getFirstName() + " " + conflict.getTeacher().getLastName());
+                            " - " + conflict.getTeacher().getFullName());
                 });
             }
 
@@ -192,7 +217,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
 
             // Validar horario pedagógicamente óptimo
             boolean isOptimalTime = hours.stream().anyMatch(hour -> {
-                int startHour = Integer.parseInt(hour.getStartTime().split(":")[0]);
+                int startHour = hour.getStartTime().getHour();
                 return startHour >= 8 && startHour <= 16;
             });
 
@@ -214,6 +239,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
                 .severity(severity)
                 .build();
     }
+
     public ValidationResultDTO checkConflicts(ClassSessionRequestDTO dto) {
         // Similar a validateAssignmentInRealTime pero solo verificando conflictos
         return validateAssignmentInRealTime(ClassSessionValidationDTO.builder()
@@ -221,7 +247,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
                 .teacherUuid(dto.getTeacherUuid())
                 .learningSpaceUuid(dto.getLearningSpaceUuid())
                 .studentGroupUuid(dto.getStudentGroupUuid())
-                .dayOfWeek(dto.getDayOfWeek())
+                .dayOfWeek(dto.getDayOfWeek().name())
                 .teachingHourUuids(dto.getTeachingHourUuids())
                 .build());
     }
@@ -248,7 +274,8 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         for (TeachingHourEntity hour : hours) {
             // Buscar sesiones que usen el mismo docente, aula o grupo en el mismo día y hora
             List<ClassSessionEntity> conflicts = classSessionRepository.findConflicts(
-                    teacherUuid, spaceUuid, groupUuid, dayOfWeek, hour.getStartTime(), hour.getEndTime());
+                    teacherUuid, spaceUuid, groupUuid, dayOfWeek,
+                    hour.getStartTime().toString(), hour.getEndTime().toString());
             allConflicts.addAll(conflicts);
         }
 
@@ -366,7 +393,6 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         List<ClassSessionEntity> sessions = classSessionRepository.findByStudentGroupUuid(studentGroupUuid);
         return classSessionMapper.toResponseDTOList(sessions);
     }
-
 
     public List<ClassSessionResponseDTO> getSessionsByTeacher(UUID teacherUuid) {
         List<ClassSessionEntity> sessions = classSessionRepository.findByTeacherUuid(teacherUuid);
