@@ -1,5 +1,7 @@
 package com.pontificia.remashorario.modules.classSession;
 
+import com.pontificia.remashorario.modules.learningSpace.LearningSpaceEntity;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
 import com.pontificia.remashorario.utils.abstractBase.BaseRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,8 +14,35 @@ import java.util.UUID;
 @Repository
 public interface ClassSessionRepository extends BaseRepository<ClassSessionEntity> {
 
-    // Buscar sesiones por grupo de estudiantes
-    List<ClassSessionEntity> findByStudentGroupUuid(UUID studentGroupUuid);
+    @Query("SELECT cs FROM ClassSessionEntity cs " +
+            "WHERE cs.dayOfWeek = :dayOfWeek " +
+            "AND (cs.teacher.uuid = :teacherUuid OR cs.learningSpace.uuid = :spaceUuid OR cs.studentGroup.uuid = :groupUuid) " +
+            "AND EXISTS (SELECT th FROM cs.teachingHours th WHERE th.startTime < :endTime AND th.endTime > :startTime)")
+    List<ClassSessionEntity> findConflicts(
+            @Param("teacherUuid") UUID teacherUuid,
+            @Param("spaceUuid") UUID spaceUuid,
+            @Param("groupUuid") UUID groupUuid,
+            @Param("dayOfWeek") String dayOfWeek,
+            @Param("startTime") String startTime,
+            @Param("endTime") String endTime);
+
+    @Query("SELECT cs FROM ClassSessionEntity cs " +
+            "WHERE cs.learningSpace = :space " +
+            "AND cs.dayOfWeek = :dayOfWeek " +
+            "AND EXISTS (SELECT th FROM cs.teachingHours th WHERE th.startTime < :endTime AND th.endTime > :startTime)")
+    List<ClassSessionEntity> findByLearningSpaceAndDayOfWeekAndTimeSlotOverlap(
+            @Param("space") LearningSpaceEntity space,
+            @Param("dayOfWeek") DayOfWeek dayOfWeek,
+            @Param("startTime") String startTime,
+            @Param("endTime") String endTime);
+
+    List<ClassSessionEntity> findByDayOfWeekAndTeachingHoursContaining(DayOfWeek dayOfWeek, TeachingHourEntity teachingHour);
+
+
+
+    @Query("SELECT cs FROM ClassSessionEntity cs WHERE cs.studentGroup.uuid = :studentGroupUuid")
+    List<ClassSessionEntity> findByStudentGroupUuid(@Param("studentGroupUuid") UUID studentGroupUuid);
+
 
     // Buscar sesiones por docente
     List<ClassSessionEntity> findByTeacherUuid(UUID teacherUuid);

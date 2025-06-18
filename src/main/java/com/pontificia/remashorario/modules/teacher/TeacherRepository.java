@@ -1,5 +1,6 @@
 package com.pontificia.remashorario.modules.teacher;
 
+import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaEntity;
 import com.pontificia.remashorario.utils.abstractBase.BaseRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +12,10 @@ import java.util.UUID;
 
 @Repository
 public interface TeacherRepository extends BaseRepository<TeacherEntity> {
+
+
+    @Query("SELECT t FROM TeacherEntity t JOIN t.knowledgeAreas ka WHERE ka.uuid = :knowledgeAreaUuid")
+    List<TeacherEntity> findByKnowledgeAreasContaining(@Param("knowledgeAreaUuid") UUID knowledgeAreaUuid);
 
     Optional<TeacherEntity> findByEmail(String email);
 

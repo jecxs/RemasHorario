@@ -1,5 +1,6 @@
 package com.pontificia.remashorario.modules.teacherAvailability;
 
+import com.pontificia.remashorario.modules.teacher.TeacherEntity;
 import com.pontificia.remashorario.utils.abstractBase.BaseRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -51,4 +52,8 @@ public interface TeacherAvailabilityRepository extends BaseRepository<TeacherAva
             @Param("endTime") String endTime);
 
     void deleteByTeacherUuid(UUID teacherUuid);
+    List<TeacherAvailabilityEntity> findByTeacherAndDayOfWeek(TeacherEntity teacher, DayOfWeek dayOfWeek);
+    List<TeacherAvailabilityEntity> findByTeacher(TeacherEntity teacher);
+    List<TeacherAvailabilityEntity> findByTeacherAndIsAvailableTrue(TeacherEntity teacher);
+
 }

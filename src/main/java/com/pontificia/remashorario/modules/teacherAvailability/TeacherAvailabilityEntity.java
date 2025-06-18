@@ -29,4 +29,11 @@ public class TeacherAvailabilityEntity extends BaseEntity {
 
     @Column(name = "end_time", nullable = false, columnDefinition = "TIME")
     private LocalTime endTime;
+
+    @Column(name = "is_available", nullable = false)
+    private Boolean isAvailable = true;
+
+    @Column(name = "notes")
+    private String notes;
+
 }

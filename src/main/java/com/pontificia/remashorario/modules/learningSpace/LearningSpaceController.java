@@ -18,6 +18,20 @@ import java.util.UUID;
 public class LearningSpaceController {
     private final LearningSpaceService learningSpaceService;
 
+    @GetMapping("/eligible/{courseUuid}")
+    public ResponseEntity<ApiResponse<List<LearningSpaceResponseDTO>>> getEligibleSpaces(
+            @PathVariable UUID courseUuid,
+            @RequestParam(required = false) String dayOfWeek,
+            @RequestParam(required = false) UUID timeSlotUuid) {
+
+        List<LearningSpaceResponseDTO> eligibleSpaces = learningSpaceService.getEligibleSpaces(
+                courseUuid, dayOfWeek, timeSlotUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(eligibleSpaces, "Aulas elegibles recuperadas con éxito")
+        );
+    }
+
 
     /**
      * Obtiene todos los espacios de aprendizaje.

@@ -2,14 +2,17 @@ package com.pontificia.remashorario.modules.teacher;
 
 import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaEntity;
 import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaService;
+import com.pontificia.remashorario.modules.TimeSlot.TimeSlotEntity;
 import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentEntity;
 import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentService;
+import com.pontificia.remashorario.modules.course.CourseEntity;
 import com.pontificia.remashorario.modules.teacher.dto.TeacherFilterDTO;
 import com.pontificia.remashorario.modules.teacher.dto.TeacherRequestDTO;
 import com.pontificia.remashorario.modules.teacher.dto.TeacherResponseDTO;
 import com.pontificia.remashorario.modules.teacher.dto.TeacherUpdateDTO;
 import com.pontificia.remashorario.modules.teacher.mapper.TeacherMapper;
 
+import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityEntity;
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherWithAvailabilitiesDTO;
 import com.pontificia.remashorario.modules.user.UserService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -65,6 +69,58 @@ public class TeacherService extends BaseService<TeacherEntity> {
         return findById(uuid)
                 .orElseThrow(() -> new EntityNotFoundException("Docente no encontrado con ID: " + uuid));
     }
+
+    public List<TeacherEntity> getEligibleTeachers(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
+        CourseEntity course = courseService.findCourseOrThrow(courseUuid);
+
+        // Filtrar docentes por área de conocimiento del curso
+        List<TeacherEntity> eligibleTeachers = teacherRepository
+                .findByKnowledgeAreasContaining(course.getKnowledgeArea());
+
+        // Si se especifica día, filtrar por disponibilidad
+        if (dayOfWeek != null) {
+            eligibleTeachers = eligibleTeachers.stream()
+                    .filter(teacher -> isTeacherAvailableOnDay(teacher, dayOfWeek))
+                    .collect(Collectors.toList());
+        }
+
+        // Si se especifica turno, filtrar por disponibilidad en ese turno
+        if (timeSlotUuid != null) {
+            TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
+            eligibleTeachers = eligibleTeachers.stream()
+                    .filter(teacher -> isTeacherAvailableInTimeSlot(teacher, dayOfWeek, timeSlot))
+                    .collect(Collectors.toList());
+        }
+
+        return eligibleTeachers;
+    }
+
+    public List<TeacherEntity> getTeachersByKnowledgeArea(UUID knowledgeAreaUuid) {
+        KnowledgeAreaEntity knowledgeArea = knowledgeAreaService.findOrThrow(knowledgeAreaUuid);
+        return teacherRepository.findByKnowledgeAreasContaining(knowledgeArea);
+    }
+
+
+    private boolean isTeacherAvailableOnDay(TeacherEntity teacher, String dayOfWeek) {
+        List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+        return availabilities.stream().anyMatch(TeacherAvailabilityEntity::getIsAvailable);
+    }
+
+    private boolean isTeacherAvailableInTimeSlot(TeacherEntity teacher, String dayOfWeek, TimeSlotEntity timeSlot) {
+        if (dayOfWeek == null) return true;
+
+        List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+        return availabilities.stream().anyMatch(availability ->
+                availability.getIsAvailable() &&
+                        timeSlot.getStartTime().compareTo(availability.getStartTime()) >= 0 &&
+                        timeSlot.getEndTime().compareTo(availability.getEndTime()) <= 0
+        );
+    }
+
 
     @Transactional
     public TeacherResponseDTO createTeacher(TeacherRequestDTO dto) {

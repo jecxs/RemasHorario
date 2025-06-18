@@ -11,7 +11,11 @@ import java.util.UUID;
 @Builder
 public class TeacherAvailabilityResponseDTO {
     private UUID uuid;
-    private DayOfWeek dayOfWeek;
-    private LocalTime startTime;
-    private LocalTime endTime;
+    private String dayOfWeek;
+    private String startTime;
+    private String endTime;
+    private boolean isAvailable;
+    private String notes;
+
+    // constructors, getters, setters
 }

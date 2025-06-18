@@ -4,6 +4,7 @@ import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotRequestDTO;
 import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotResponseDTO;
 
 import com.pontificia.remashorario.modules.TimeSlot.mapper.TimeSlotMapper;
+import com.pontificia.remashorario.modules.classSession.ClassSessionEntity;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -11,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.List;
@@ -28,6 +30,43 @@ public class TimeSlotService {
         this.timeSlotRepository = timeSlotRepository;
         this.timeSlotMapper = timeSlotMapper;
     }
+
+    public List<TeachingHourEntity> getAvailableHours(UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek) {
+        List<TeachingHourEntity> allHours = teachingHourRepository.findByIsActiveTrueOrderByTimeSlotStartTimeAscOrderInTimeSlotAsc();
+
+        return allHours.stream()
+                .filter(hour -> isHourAvailableForAssignment(hour, teacherUuid, spaceUuid, groupUuid, dayOfWeek))
+                .collect(Collectors.toList());
+    }
+
+    public List<TeachingHourEntity> getHoursByTimeSlot(UUID timeSlotUuid) {
+        TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
+        return teachingHourRepository.findByTimeSlotAndIsActiveTrueOrderByOrderInTimeSlot(timeSlot);
+    }
+
+    public List<TeachingHourEntity> getAvailableHoursByTimeSlot(UUID timeSlotUuid, String dayOfWeek) {
+        List<TeachingHourEntity> hours = getHoursByTimeSlot(timeSlotUuid);
+
+        return hours.stream()
+                .filter(hour -> !isHourOccupied(hour, dayOfWeek))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isHourAvailableForAssignment(TeachingHourEntity hour, UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek) {
+        // Verificar si la hora no está ocupada por el docente, aula o grupo
+        List<ClassSessionEntity> conflicts = classSessionRepository.findConflicts(
+                teacherUuid, spaceUuid, groupUuid, dayOfWeek, hour.getStartTime(), hour.getEndTime());
+
+        return conflicts.isEmpty();
+    }
+
+    private boolean isHourOccupied(TeachingHourEntity hour, String dayOfWeek) {
+        List<ClassSessionEntity> sessions = classSessionRepository
+                .findByDayOfWeekAndTeachingHoursContaining(DayOfWeek.valueOf(dayOfWeek.toUpperCase()), hour);
+
+        return !sessions.isEmpty();
+    }
+
 
     @Transactional
     public TimeSlotResponseDTO createTimeSlot(TimeSlotRequestDTO requestDTO) {

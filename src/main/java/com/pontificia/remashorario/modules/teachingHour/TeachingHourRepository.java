@@ -13,5 +13,8 @@ import java.util.UUID;
 
 @Repository
 public interface TeachingHourRepository extends JpaRepository<TeachingHourEntity, UUID> {
+    List<TeachingHourEntity> findByIsActiveTrueOrderByTimeSlotStartTimeAscOrderInTimeSlotAsc();
+    List<TeachingHourEntity> findByTimeSlotAndIsActiveTrueOrderByOrderInTimeSlot(TimeSlotEntity timeSlot);
+
 
 }

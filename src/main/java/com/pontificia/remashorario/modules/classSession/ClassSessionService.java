@@ -1,8 +1,6 @@
 package com.pontificia.remashorario.modules.classSession;
 
-import com.pontificia.remashorario.modules.classSession.dto.ClassSessionFilterDTO;
-import com.pontificia.remashorario.modules.classSession.dto.ClassSessionRequestDTO;
-import com.pontificia.remashorario.modules.classSession.dto.ClassSessionResponseDTO;
+import com.pontificia.remashorario.modules.classSession.dto.*;
 import com.pontificia.remashorario.modules.classSession.mapper.ClassSessionMapper;
 import com.pontificia.remashorario.modules.course.CourseEntity;
 import com.pontificia.remashorario.modules.course.CourseService;
@@ -12,6 +10,7 @@ import com.pontificia.remashorario.modules.studentGroup.StudentGroupEntity;
 import com.pontificia.remashorario.modules.studentGroup.StudentGroupService;
 import com.pontificia.remashorario.modules.teacher.TeacherEntity;
 import com.pontificia.remashorario.modules.teacher.TeacherService;
+import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityEntity;
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityService;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourRepository;
@@ -25,10 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -79,6 +75,220 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
     public ClassSessionEntity findClassSessionOrThrow(UUID uuid) {
         return findById(uuid)
                 .orElseThrow(() -> new EntityNotFoundException("Sesión de clase no encontrada con ID: " + uuid));
+    }
+
+    public IntelliSenseDTO getIntelliSense(UUID courseUuid, UUID groupUuid, String dayOfWeek, UUID timeSlotUuid) {
+        IntelliSenseDTO intelliSense = new IntelliSenseDTO();
+        List<String> recommendations = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+
+        // Si se proporciona un curso, filtrar docentes por área de conocimiento
+        if (courseUuid != null) {
+            CourseEntity course = courseService.findCourseOrThrow(courseUuid);
+            List<TeacherEntity> eligibleTeachers = teacherService.getTeachersByKnowledgeArea(
+                    course.getKnowledgeArea().getUuid());
+            intelliSense.setEligibleTeachers(teacherMapper.toResponseDTOList(eligibleTeachers));
+
+            // Filtrar aulas por tipo de sesión requerido
+            List<LearningSpaceEntity> eligibleSpaces = learningSpaceService.getSpacesByTeachingType(
+                    course.getWeeklyPracticeHours() > 0 ? "PRACTICE" : "THEORY");
+            intelliSense.setEligibleSpaces(learningSpaceMapper.toResponseDTOList(eligibleSpaces));
+
+            // Agregar recomendaciones específicas del curso
+            if (course.getWeeklyPracticeHours() > 0) {
+                recommendations.add("Este curso requiere laboratorio para clases prácticas");
+            }
+            if (course.getPreferredSpecialty() != null) {
+                recommendations.add("Recomendado: Laboratorio de " + course.getPreferredSpecialty().getName());
+            }
+        }
+
+        // Si se proporciona día y turno, filtrar horas disponibles
+        if (dayOfWeek != null && timeSlotUuid != null) {
+            List<TeachingHourEntity> availableHours = teachingHourService.getAvailableHoursByTimeSlot(
+                    timeSlotUuid, dayOfWeek);
+            intelliSense.setAvailableHours(teachingHourMapper.toResponseDTOList(availableHours));
+        }
+
+        intelliSense.setRecommendations(recommendations);
+        intelliSense.setWarnings(warnings);
+
+        return intelliSense;
+    }
+
+    public ValidationResultDTO validateAssignmentInRealTime(ClassSessionValidationDTO dto) {
+        List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
+        String conflictType = null;
+        String severity = "LOW";
+
+        try {
+            // Obtener entidades
+            CourseEntity course = courseService.findCourseOrThrow(dto.getCourseUuid());
+            TeacherEntity teacher = teacherService.findTeacherOrThrow(dto.getTeacherUuid());
+            LearningSpaceEntity space = learningSpaceService.findOrThrow(dto.getLearningSpaceUuid());
+            StudentGroupEntity group = studentGroupService.findOrThrow(dto.getStudentGroupUuid());
+            Set<TeachingHourEntity> hours = getAndValidateTeachingHours(dto.getTeachingHourUuids());
+
+            // Validar compatibilidad docente-curso
+            if (!teacher.getKnowledgeAreas().contains(course.getKnowledgeArea())) {
+                warnings.add("El docente no tiene el área de conocimiento específica del curso");
+                suggestions.add("Considerar asignar un docente especializado en " + course.getKnowledgeArea().getName());
+            }
+
+            // Validar disponibilidad del docente
+            boolean teacherAvailable = validateTeacherAvailabilityForDay(teacher, dto.getDayOfWeek(), hours);
+            if (!teacherAvailable) {
+                errors.add("El docente no está disponible en este horario");
+                conflictType = "TEACHER";
+                severity = "HIGH";
+            }
+
+            // Validar capacidad del aula
+            if (space.getCapacity() < 25) { // Asumiendo mínimo 25 estudiantes por grupo
+                warnings.add("El aula podría ser pequeña para el grupo");
+                suggestions.add("Considerar un aula con mayor capacidad");
+            }
+
+            // Validar tipo de aula vs tipo de curso
+            boolean isTheoryOnlyClass = course.getWeeklyPracticeHours() == 0;
+            boolean isPracticeClass = course.getWeeklyPracticeHours() > 0;
+
+            if (isPracticeClass && !"PRACTICE".equals(space.getTeachingType().getName())) {
+                warnings.add("Curso práctico asignado a aula teórica");
+                suggestions.add("Recomendado: Usar un laboratorio para mejor experiencia de aprendizaje");
+                severity = "MEDIUM";
+            }
+
+            // Verificar conflictos de horario
+            List<ClassSessionEntity> conflicts = findConflictsForAssignment(
+                    teacher.getUuid(), space.getUuid(), group.getUuid(), dto.getDayOfWeek(), hours);
+
+            if (!conflicts.isEmpty()) {
+                errors.add("Existe conflicto de horario");
+                conflictType = determineConflictType(conflicts, teacher.getUuid(), space.getUuid(), group.getUuid());
+                severity = "CRITICAL";
+
+                conflicts.forEach(conflict -> {
+                    suggestions.add("Conflicto con: " + conflict.getCourse().getName() +
+                            " - " + conflict.getTeacher().getFirstName() + " " + conflict.getTeacher().getLastName());
+                });
+            }
+
+            // Validar horas consecutivas
+            if (hours.size() > 1 && !areHoursConsecutive(hours)) {
+                warnings.add("Las horas pedagógicas no son consecutivas");
+                suggestions.add("Recomendado: Asignar horas consecutivas para mejor continuidad");
+            }
+
+            // Validar duración de la sesión
+            int totalMinutes = hours.stream().mapToInt(TeachingHourEntity::getDurationMinutes).sum();
+            if (totalMinutes > 180) { // Más de 3 horas
+                warnings.add("Sesión muy larga (más de 3 horas)");
+                suggestions.add("Considerar dividir en sesiones más cortas");
+                severity = severity.equals("LOW") ? "MEDIUM" : severity;
+            }
+
+            // Validar horario pedagógicamente óptimo
+            boolean isOptimalTime = hours.stream().anyMatch(hour -> {
+                int startHour = Integer.parseInt(hour.getStartTime().split(":")[0]);
+                return startHour >= 8 && startHour <= 16;
+            });
+
+            if (!isOptimalTime) {
+                suggestions.add("Horario fuera del rango pedagógicamente óptimo (8:00-16:00)");
+            }
+
+        } catch (Exception e) {
+            errors.add("Error en la validación: " + e.getMessage());
+            severity = "CRITICAL";
+        }
+
+        return ValidationResultDTO.builder()
+                .isValid(errors.isEmpty())
+                .errors(errors)
+                .warnings(warnings)
+                .suggestions(suggestions)
+                .conflictType(conflictType)
+                .severity(severity)
+                .build();
+    }
+    public ValidationResultDTO checkConflicts(ClassSessionRequestDTO dto) {
+        // Similar a validateAssignmentInRealTime pero solo verificando conflictos
+        return validateAssignmentInRealTime(ClassSessionValidationDTO.builder()
+                .courseUuid(dto.getCourseUuid())
+                .teacherUuid(dto.getTeacherUuid())
+                .learningSpaceUuid(dto.getLearningSpaceUuid())
+                .studentGroupUuid(dto.getStudentGroupUuid())
+                .dayOfWeek(dto.getDayOfWeek())
+                .teachingHourUuids(dto.getTeachingHourUuids())
+                .build());
+    }
+
+    private String determineConflictType(List<ClassSessionEntity> conflicts, UUID teacherUuid, UUID spaceUuid, UUID groupUuid) {
+        boolean hasTeacherConflict = conflicts.stream().anyMatch(c -> c.getTeacher().getUuid().equals(teacherUuid));
+        boolean hasSpaceConflict = conflicts.stream().anyMatch(c -> c.getLearningSpace().getUuid().equals(spaceUuid));
+        boolean hasGroupConflict = conflicts.stream().anyMatch(c -> c.getStudentGroup().getUuid().equals(groupUuid));
+
+        int conflictCount = (hasTeacherConflict ? 1 : 0) + (hasSpaceConflict ? 1 : 0) + (hasGroupConflict ? 1 : 0);
+
+        if (conflictCount > 1) return "MULTIPLE";
+        if (hasTeacherConflict) return "TEACHER";
+        if (hasSpaceConflict) return "SPACE";
+        if (hasGroupConflict) return "GROUP";
+        return "UNKNOWN";
+    }
+
+    private List<ClassSessionEntity> findConflictsForAssignment(
+            UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek, Set<TeachingHourEntity> hours) {
+
+        List<ClassSessionEntity> allConflicts = new ArrayList<>();
+
+        for (TeachingHourEntity hour : hours) {
+            // Buscar sesiones que usen el mismo docente, aula o grupo en el mismo día y hora
+            List<ClassSessionEntity> conflicts = classSessionRepository.findConflicts(
+                    teacherUuid, spaceUuid, groupUuid, dayOfWeek, hour.getStartTime(), hour.getEndTime());
+            allConflicts.addAll(conflicts);
+        }
+
+        return allConflicts.stream().distinct().collect(Collectors.toList());
+    }
+
+    private boolean areHoursConsecutive(Set<TeachingHourEntity> hours) {
+        if (hours.size() <= 1) return true;
+
+        List<TeachingHourEntity> sortedHours = hours.stream()
+                .sorted(Comparator.comparing(TeachingHourEntity::getOrderInTimeSlot))
+                .collect(Collectors.toList());
+
+        for (int i = 1; i < sortedHours.size(); i++) {
+            if (sortedHours.get(i).getOrderInTimeSlot() != sortedHours.get(i-1).getOrderInTimeSlot() + 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean validateTeacherAvailabilityForDay(TeacherEntity teacher, String dayOfWeek, Set<TeachingHourEntity> hours) {
+        // Obtener disponibilidades del docente para el día específico
+        List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+        if (availabilities.isEmpty()) return false; // No hay disponibilidad registrada
+
+        // Verificar si todas las horas están dentro de la disponibilidad del docente
+        for (TeachingHourEntity hour : hours) {
+            boolean isAvailable = availabilities.stream().anyMatch(availability ->
+                    availability.getIsAvailable() &&
+                            hour.getStartTime().compareTo(availability.getStartTime()) >= 0 &&
+                            hour.getEndTime().compareTo(availability.getEndTime()) <= 0
+            );
+
+            if (!isAvailable) return false;
+        }
+
+        return true;
     }
 
     @Transactional
@@ -156,6 +366,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         List<ClassSessionEntity> sessions = classSessionRepository.findByStudentGroupUuid(studentGroupUuid);
         return classSessionMapper.toResponseDTOList(sessions);
     }
+
 
     public List<ClassSessionResponseDTO> getSessionsByTeacher(UUID teacherUuid) {
         List<ClassSessionEntity> sessions = classSessionRepository.findByTeacherUuid(teacherUuid);

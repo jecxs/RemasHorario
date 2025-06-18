@@ -1,5 +1,8 @@
 package com.pontificia.remashorario.modules.learningSpace;
 
+import com.pontificia.remashorario.modules.TimeSlot.TimeSlotEntity;
+import com.pontificia.remashorario.modules.classSession.ClassSessionEntity;
+import com.pontificia.remashorario.modules.course.CourseEntity;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceRequestDTO;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceResponseDTO;
 import com.pontificia.remashorario.modules.learningSpace.mapper.LearningSpaceMapper;
@@ -8,8 +11,10 @@ import com.pontificia.remashorario.utils.abstractBase.BaseService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
@@ -21,6 +26,51 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
         super(learningSpaceRepository);
         this.learningSpaceMapper = learningSpaceMapper;
         this.learningSpaceRepository = learningSpaceRepository;
+    }
+
+    public List<LearningSpaceEntity> getEligibleSpaces(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
+        CourseEntity course = courseService.findCourseOrThrow(courseUuid);
+
+        // Determinar tipo de enseñanza requerido
+        String requiredTeachingType = course.getWeeklyPracticeHours() > 0 ? "PRACTICE" : "THEORY";
+
+        List<LearningSpaceEntity> eligibleSpaces = learningSpaceRepository
+                .findByTeachingTypeNameAndIsActiveTrue(requiredTeachingType);
+
+        // Si el curso tiene especialidad preferida, priorizar esas aulas
+        if (course.getPreferredSpecialty() != null) {
+            List<LearningSpaceEntity> preferredSpaces = eligibleSpaces.stream()
+                    .filter(space -> space.getSpecialty() != null &&
+                            space.getSpecialty().getUuid().equals(course.getPreferredSpecialty().getUuid()))
+                    .collect(Collectors.toList());
+
+            if (!preferredSpaces.isEmpty()) {
+                eligibleSpaces = preferredSpaces;
+            }
+        }
+
+        // Filtrar por disponibilidad si se especifica día y turno
+        if (dayOfWeek != null && timeSlotUuid != null) {
+            TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
+            eligibleSpaces = eligibleSpaces.stream()
+                    .filter(space -> isSpaceAvailableInTimeSlot(space, dayOfWeek, timeSlot))
+                    .collect(Collectors.toList());
+        }
+
+        return eligibleSpaces;
+    }
+
+    public List<LearningSpaceEntity> getSpacesByTeachingType(String teachingTypeName) {
+        return learningSpaceRepository.findByTeachingTypeNameAndIsActiveTrue(teachingTypeName);
+    }
+
+    private boolean isSpaceAvailableInTimeSlot(LearningSpaceEntity space, String dayOfWeek, TimeSlotEntity timeSlot) {
+        // Verificar si el aula está ocupada en ese horario
+        List<ClassSessionEntity> occupiedSessions = classSessionRepository
+                .findByLearningSpaceAndDayOfWeekAndTimeSlotOverlap(
+                        space, DayOfWeek.valueOf(dayOfWeek.toUpperCase()), timeSlot.getStartTime(), timeSlot.getEndTime());
+
+        return occupiedSessions.isEmpty();
     }
 
     /**

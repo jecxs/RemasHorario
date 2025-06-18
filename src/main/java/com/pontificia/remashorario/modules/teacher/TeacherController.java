@@ -26,6 +26,20 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TeacherController {
 
+    @GetMapping("/eligible/{courseUuid}")
+    public ResponseEntity<ApiResponse<List<TeacherResponseDTO>>> getEligibleTeachers(
+            @PathVariable UUID courseUuid,
+            @RequestParam(required = false) String dayOfWeek,
+            @RequestParam(required = false) UUID timeSlotUuid) {
+
+        List<TeacherResponseDTO> eligibleTeachers = teacherService.getEligibleTeachers(
+                courseUuid, dayOfWeek, timeSlotUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(eligibleTeachers, "Docentes elegibles recuperados con éxito")
+        );
+    }
+
     private final TeacherService teacherService;
     private final TeacherAvailabilityService availabilityService;
 
@@ -120,15 +134,19 @@ public class TeacherController {
 
     // ===== ENDPOINTS DE DISPONIBILIDAD =====
 
+
     @GetMapping("/{teacherUuid}/availabilities")
     public ResponseEntity<ApiResponse<List<TeacherAvailabilityResponseDTO>>> getTeacherAvailabilities(
             @PathVariable UUID teacherUuid) {
+
         List<TeacherAvailabilityResponseDTO> availabilities =
-                availabilityService.getTeacherAvailabilities(teacherUuid);
+               availabilityService.getAvailabilitiesByTeacher(teacherUuid);
+
         return ResponseEntity.ok(
                 ApiResponse.success(availabilities, "Disponibilidades del docente recuperadas con éxito")
         );
     }
+
 
     @GetMapping("/{teacherUuid}/availabilities/day/{dayOfWeek}")
     public ResponseEntity<ApiResponse<List<TeacherAvailabilityResponseDTO>>> getTeacherAvailabilitiesByDay(

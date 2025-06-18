@@ -3,6 +3,7 @@ package com.pontificia.remashorario.modules.TimeSlot;
 import com.pontificia.remashorario.config.ApiResponse;
 import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotRequestDTO;
 import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotResponseDTO;
+import com.pontificia.remashorario.modules.teachingHour.dto.TeachingHourResponseDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,4 +52,29 @@ public class TimeSlotController {
         timeSlotService.deleteTimeSlot(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Turno eliminado exitosamente."));
     }
+    @GetMapping("/available")
+    public ResponseEntity<ApiResponse<List<TeachingHourResponseDTO>>> getAvailableTeachingHours(
+            @RequestParam UUID teacherUuid,
+            @RequestParam UUID spaceUuid,
+            @RequestParam UUID groupUuid,
+            @RequestParam String dayOfWeek) {
+
+        List<TeachingHourResponseDTO> availableHours = timeSlotService.getAvailableHours(
+                teacherUuid, spaceUuid, groupUuid, dayOfWeek);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(availableHours, "Horas disponibles recuperadas con éxito")
+        );
+    }
+
+    @GetMapping("/time-slot/{timeSlotUuid}")
+    public ResponseEntity<ApiResponse<List<TeachingHourResponseDTO>>> getTeachingHoursByTimeSlot(
+            @PathVariable UUID timeSlotUuid) {
+
+        List<TeachingHourResponseDTO> hours = teachingHourService.getHoursByTimeSlot(timeSlotUuid);
+        return ResponseEntity.ok(
+                ApiResponse.success(hours, "Horas pedagógicas del turno recuperadas con éxito")
+        );
+    }
+
 }

@@ -1,9 +1,7 @@
 package com.pontificia.remashorario.modules.classSession;
 
 import com.pontificia.remashorario.config.ApiResponse;
-import com.pontificia.remashorario.modules.classSession.dto.ClassSessionFilterDTO;
-import com.pontificia.remashorario.modules.classSession.dto.ClassSessionRequestDTO;
-import com.pontificia.remashorario.modules.classSession.dto.ClassSessionResponseDTO;
+import com.pontificia.remashorario.modules.classSession.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +19,37 @@ public class ClassSessionController {
 
     private final ClassSessionService classSessionService;
 
+    @GetMapping("/intellisense")
+    public ResponseEntity<ApiResponse<IntelliSenseDTO>> getIntelliSense(
+            @RequestParam(required = false) UUID courseUuid,
+            @RequestParam(required = false) UUID groupUuid,
+            @RequestParam(required = false) String dayOfWeek,
+            @RequestParam(required = false) UUID timeSlotUuid) {
+
+        IntelliSenseDTO intelliSense = classSessionService.getIntelliSense(
+                courseUuid, groupUuid, dayOfWeek, timeSlotUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(intelliSense, "IntelliSense generado exitosamente")
+        );
+    }
+
+    @PostMapping("/validate")
+    public ResponseEntity<ValidationResultDTO> validateAssignmentInRealTime(
+            @Valid @RequestBody ClassSessionValidationDTO dto) {
+
+        ValidationResultDTO result = classSessionService.validateAssignmentInRealTime(dto);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/check-conflicts")
+    public ResponseEntity<ValidationResultDTO> checkConflicts(
+            @Valid @RequestBody ClassSessionRequestDTO dto) {
+
+        ValidationResultDTO result = classSessionService.checkConflicts(dto);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<ClassSessionResponseDTO>>> getAllClassSessions() {
         List<ClassSessionResponseDTO> sessions = classSessionService.getAllClassSessions();
@@ -37,18 +66,21 @@ public class ClassSessionController {
         );
     }
 
-    @GetMapping("/student-group/{studentGroupUuid}")
+    @GetMapping("/student-group/{groupUuid}")
     public ResponseEntity<ApiResponse<List<ClassSessionResponseDTO>>> getSessionsByStudentGroup(
-            @PathVariable UUID studentGroupUuid) {
-        List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByStudentGroup(studentGroupUuid);
+            @PathVariable UUID groupUuid) {
+
+        List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByStudentGroup(groupUuid);
         return ResponseEntity.ok(
                 ApiResponse.success(sessions, "Sesiones del grupo recuperadas con éxito")
         );
     }
 
+
     @GetMapping("/teacher/{teacherUuid}")
     public ResponseEntity<ApiResponse<List<ClassSessionResponseDTO>>> getSessionsByTeacher(
             @PathVariable UUID teacherUuid) {
+
         List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByTeacher(teacherUuid);
         return ResponseEntity.ok(
                 ApiResponse.success(sessions, "Sesiones del docente recuperadas con éxito")
@@ -108,4 +140,5 @@ public class ClassSessionController {
                 ApiResponse.success(sessions, "Sesiones filtradas recuperadas con éxito")
         );
     }
+
 }
