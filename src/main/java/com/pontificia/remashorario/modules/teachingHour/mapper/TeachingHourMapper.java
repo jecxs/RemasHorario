@@ -25,4 +25,10 @@ public class TeachingHourMapper {
                 .durationMinutes(entity.getDurationMinutes())
                 .build();
     }
+
+    public List<TeachingHourResponseDTO> toResponseDTOList(List<TeachingHourEntity> entities) {
+        return entities.stream()
+                .map(this::toTeachingHourResponseDTO)
+                .collect(Collectors.toList());
+    }
 }

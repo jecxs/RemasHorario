@@ -4,6 +4,7 @@ import com.pontificia.remashorario.config.ApiResponse;
 import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotRequestDTO;
 import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotResponseDTO;
 import com.pontificia.remashorario.modules.teachingHour.dto.TeachingHourResponseDTO;
+import com.pontificia.remashorario.modules.teachingHour.mapper.TeachingHourMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +18,12 @@ import java.util.UUID;
 public class TimeSlotController {
 
     private final TimeSlotService timeSlotService;
+    private final TeachingHourMapper teachingHourMapper;
 
-    public TimeSlotController(TimeSlotService timeSlotService) {
+    public TimeSlotController(TimeSlotService timeSlotService,
+                              TeachingHourMapper teachingHourMapper) {
         this.timeSlotService = timeSlotService;
+        this.teachingHourMapper = teachingHourMapper;
     }
 
     @PostMapping
@@ -59,8 +63,8 @@ public class TimeSlotController {
             @RequestParam UUID groupUuid,
             @RequestParam String dayOfWeek) {
 
-        List<TeachingHourResponseDTO> availableHours = timeSlotService.getAvailableHours(
-                teacherUuid, spaceUuid, groupUuid, dayOfWeek);
+        List<TeachingHourResponseDTO> availableHours = teachingHourMapper.toResponseDTOList(
+                timeSlotService.getAvailableHours(teacherUuid, spaceUuid, groupUuid, dayOfWeek));
 
         return ResponseEntity.ok(
                 ApiResponse.success(availableHours, "Horas disponibles recuperadas con éxito")
@@ -71,7 +75,8 @@ public class TimeSlotController {
     public ResponseEntity<ApiResponse<List<TeachingHourResponseDTO>>> getTeachingHoursByTimeSlot(
             @PathVariable UUID timeSlotUuid) {
 
-        List<TeachingHourResponseDTO> hours = teachingHourService.getHoursByTimeSlot(timeSlotUuid);
+        List<TeachingHourResponseDTO> hours = teachingHourMapper.toResponseDTOList(
+                timeSlotService.getHoursByTimeSlot(timeSlotUuid));
         return ResponseEntity.ok(
                 ApiResponse.success(hours, "Horas pedagógicas del turno recuperadas con éxito")
         );

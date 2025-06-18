@@ -140,7 +140,7 @@ public class TeacherController {
             @PathVariable UUID teacherUuid) {
 
         List<TeacherAvailabilityResponseDTO> availabilities =
-               availabilityService.getAvailabilitiesByTeacher(teacherUuid);
+               availabilityService.getTeacherAvailabilities(teacherUuid);
 
         return ResponseEntity.ok(
                 ApiResponse.success(availabilities, "Disponibilidades del docente recuperadas con éxito")

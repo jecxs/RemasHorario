@@ -18,9 +18,11 @@ public class TeacherAvailabilityMapper {
 
         return TeacherAvailabilityResponseDTO.builder()
                 .uuid(entity.getUuid())
-                .dayOfWeek(entity.getDayOfWeek())
-                .startTime(entity.getStartTime())
-                .endTime(entity.getEndTime())
+                .dayOfWeek(entity.getDayOfWeek().name())
+                .startTime(entity.getStartTime().toString())
+                .endTime(entity.getEndTime().toString())
+                .isAvailable(Boolean.TRUE.equals(entity.getIsAvailable()))
+                .notes(entity.getNotes())
                 .build();
     }
 

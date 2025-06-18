@@ -2,11 +2,14 @@ package com.pontificia.remashorario.modules.learningSpace;
 
 import com.pontificia.remashorario.modules.TimeSlot.TimeSlotEntity;
 import com.pontificia.remashorario.modules.classSession.ClassSessionEntity;
+import com.pontificia.remashorario.modules.classSession.ClassSessionRepository;
 import com.pontificia.remashorario.modules.course.CourseEntity;
+import com.pontificia.remashorario.modules.course.CourseService;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceRequestDTO;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceResponseDTO;
 import com.pontificia.remashorario.modules.learningSpace.mapper.LearningSpaceMapper;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeEntity;
+import com.pontificia.remashorario.modules.TimeSlot.TimeSlotService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -20,15 +23,24 @@ import java.util.stream.Collectors;
 public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
     private final LearningSpaceMapper learningSpaceMapper;
     private final LearningSpaceRepository learningSpaceRepository;
+    private final CourseService courseService;
+    private final TimeSlotService timeSlotService;
+    private final ClassSessionRepository classSessionRepository;
 
     public LearningSpaceService(LearningSpaceRepository learningSpaceRepository,
-                               LearningSpaceMapper learningSpaceMapper) {
+                               LearningSpaceMapper learningSpaceMapper,
+                               CourseService courseService,
+                               TimeSlotService timeSlotService,
+                               ClassSessionRepository classSessionRepository) {
         super(learningSpaceRepository);
         this.learningSpaceMapper = learningSpaceMapper;
         this.learningSpaceRepository = learningSpaceRepository;
+        this.courseService = courseService;
+        this.timeSlotService = timeSlotService;
+        this.classSessionRepository = classSessionRepository;
     }
 
-    public List<LearningSpaceEntity> getEligibleSpaces(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
+    public List<LearningSpaceResponseDTO> getEligibleSpaces(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
         CourseEntity course = courseService.findCourseOrThrow(courseUuid);
 
         // Determinar tipo de enseñanza requerido
@@ -57,7 +69,7 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
                     .collect(Collectors.toList());
         }
 
-        return eligibleSpaces;
+        return learningSpaceMapper.toResponseDTOList(eligibleSpaces);
     }
 
     public List<LearningSpaceEntity> getSpacesByTeachingType(String teachingTypeName) {
@@ -68,7 +80,10 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
         // Verificar si el aula está ocupada en ese horario
         List<ClassSessionEntity> occupiedSessions = classSessionRepository
                 .findByLearningSpaceAndDayOfWeekAndTimeSlotOverlap(
-                        space, DayOfWeek.valueOf(dayOfWeek.toUpperCase()), timeSlot.getStartTime(), timeSlot.getEndTime());
+                        space,
+                        DayOfWeek.valueOf(dayOfWeek.toUpperCase()),
+                        timeSlot.getStartTime().toString(),
+                        timeSlot.getEndTime().toString());
 
         return occupiedSessions.isEmpty();
     }
