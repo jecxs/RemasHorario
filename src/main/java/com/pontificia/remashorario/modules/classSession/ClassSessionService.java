@@ -103,7 +103,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
     }
 
     public IntelliSenseDTO getIntelliSense(UUID courseUuid, UUID groupUuid, String dayOfWeek, UUID timeSlotUuid) {
-        IntelliSenseDTO intelliSense = new IntelliSenseDTO();
+        IntelliSenseDTO intelliSense = IntelliSenseDTO.builder().build();
         List<String> recommendations = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
 

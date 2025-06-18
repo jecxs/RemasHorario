@@ -5,7 +5,9 @@ import com.pontificia.remashorario.modules.TimeSlot.dto.TimeSlotResponseDTO;
 
 import com.pontificia.remashorario.modules.TimeSlot.mapper.TimeSlotMapper;
 import com.pontificia.remashorario.modules.classSession.ClassSessionEntity;
+import com.pontificia.remashorario.modules.classSession.ClassSessionRepository;
 import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -25,10 +27,17 @@ public class TimeSlotService {
 
     private final TimeSlotRepository timeSlotRepository;
     private final TimeSlotMapper timeSlotMapper;
+    private final TeachingHourRepository teachingHourRepository;
+    private final ClassSessionRepository classSessionRepository;
 
-    public TimeSlotService(TimeSlotRepository timeSlotRepository, TimeSlotMapper timeSlotMapper) {
+    public TimeSlotService(TimeSlotRepository timeSlotRepository,
+                           TimeSlotMapper timeSlotMapper,
+                           TeachingHourRepository teachingHourRepository,
+                           ClassSessionRepository classSessionRepository) {
         this.timeSlotRepository = timeSlotRepository;
         this.timeSlotMapper = timeSlotMapper;
+        this.teachingHourRepository = teachingHourRepository;
+        this.classSessionRepository = classSessionRepository;
     }
 
     public List<TeachingHourEntity> getAvailableHours(UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek) {
@@ -40,7 +49,7 @@ public class TimeSlotService {
     }
 
     public List<TeachingHourEntity> getHoursByTimeSlot(UUID timeSlotUuid) {
-        TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
+        TimeSlotEntity timeSlot = findOrThrow(timeSlotUuid);
         return teachingHourRepository.findByTimeSlotAndIsActiveTrueOrderByOrderInTimeSlot(timeSlot);
     }
 
@@ -55,7 +64,12 @@ public class TimeSlotService {
     private boolean isHourAvailableForAssignment(TeachingHourEntity hour, UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek) {
         // Verificar si la hora no está ocupada por el docente, aula o grupo
         List<ClassSessionEntity> conflicts = classSessionRepository.findConflicts(
-                teacherUuid, spaceUuid, groupUuid, dayOfWeek, hour.getStartTime(), hour.getEndTime());
+                teacherUuid,
+                spaceUuid,
+                groupUuid,
+                dayOfWeek,
+                hour.getStartTime().toString(),
+                hour.getEndTime().toString());
 
         return conflicts.isEmpty();
     }
@@ -183,6 +197,11 @@ public class TimeSlotService {
         if (!overlapping.isEmpty()) {
             throw new IllegalArgumentException("El rango horario se solapa con un turno existente.");
         }
+    }
+
+    public TimeSlotEntity findOrThrow(UUID uuid) {
+        return timeSlotRepository.findById(uuid)
+                .orElseThrow(() -> new EntityNotFoundException("Turno no encontrado con ID: " + uuid));
     }
 
 

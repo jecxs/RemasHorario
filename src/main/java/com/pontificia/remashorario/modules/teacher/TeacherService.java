@@ -13,8 +13,11 @@ import com.pontificia.remashorario.modules.teacher.dto.TeacherUpdateDTO;
 import com.pontificia.remashorario.modules.teacher.mapper.TeacherMapper;
 
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityEntity;
+import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityRepository;
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherWithAvailabilitiesDTO;
 import com.pontificia.remashorario.modules.user.UserService;
+import com.pontificia.remashorario.modules.course.CourseService;
+import com.pontificia.remashorario.modules.TimeSlot.TimeSlotService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
 import jakarta.persistence.EntityNotFoundException;
 
@@ -34,19 +37,28 @@ public class TeacherService extends BaseService<TeacherEntity> {
     private final AcademicDepartmentService departmentService;
     private final KnowledgeAreaService knowledgeAreaService;
     private final UserService userService;
+    private final CourseService courseService;
+    private final TimeSlotService timeSlotService;
+    private final TeacherAvailabilityRepository teacherAvailabilityRepository;
 
     @Autowired
     public TeacherService(TeacherRepository teacherRepository,
                           TeacherMapper teacherMapper,
                           AcademicDepartmentService departmentService,
                           KnowledgeAreaService knowledgeAreaService,
-                          UserService userService) {
+                          UserService userService,
+                          CourseService courseService,
+                          TimeSlotService timeSlotService,
+                          TeacherAvailabilityRepository teacherAvailabilityRepository) {
         super(teacherRepository);
         this.teacherRepository = teacherRepository;
         this.teacherMapper = teacherMapper;
         this.departmentService = departmentService;
         this.knowledgeAreaService = knowledgeAreaService;
         this.userService = userService;
+        this.courseService = courseService;
+        this.timeSlotService = timeSlotService;
+        this.teacherAvailabilityRepository = teacherAvailabilityRepository;
     }
 
     public List<TeacherResponseDTO> getAllTeachers() {
@@ -70,12 +82,12 @@ public class TeacherService extends BaseService<TeacherEntity> {
                 .orElseThrow(() -> new EntityNotFoundException("Docente no encontrado con ID: " + uuid));
     }
 
-    public List<TeacherEntity> getEligibleTeachers(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
+    public List<TeacherResponseDTO> getEligibleTeachers(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
         CourseEntity course = courseService.findCourseOrThrow(courseUuid);
 
         // Filtrar docentes por área de conocimiento del curso
         List<TeacherEntity> eligibleTeachers = teacherRepository
-                .findByKnowledgeAreasContaining(course.getKnowledgeArea());
+                .findByKnowledgeAreasContaining(course.getTeachingKnowledgeArea().getUuid());
 
         // Si se especifica día, filtrar por disponibilidad
         if (dayOfWeek != null) {
@@ -92,12 +104,12 @@ public class TeacherService extends BaseService<TeacherEntity> {
                     .collect(Collectors.toList());
         }
 
-        return eligibleTeachers;
+        return teacherMapper.toResponseDTOList(eligibleTeachers);
     }
 
     public List<TeacherEntity> getTeachersByKnowledgeArea(UUID knowledgeAreaUuid) {
         KnowledgeAreaEntity knowledgeArea = knowledgeAreaService.findOrThrow(knowledgeAreaUuid);
-        return teacherRepository.findByKnowledgeAreasContaining(knowledgeArea);
+        return teacherRepository.findByKnowledgeAreasContaining(knowledgeArea.getUuid());
     }
 
 
