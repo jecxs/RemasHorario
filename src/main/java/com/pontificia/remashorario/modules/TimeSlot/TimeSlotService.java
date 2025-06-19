@@ -41,7 +41,7 @@ public class TimeSlotService {
     }
 
     public List<TeachingHourEntity> getAvailableHours(UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek) {
-        List<TeachingHourEntity> allHours = teachingHourRepository.findByIsActiveTrueOrderByTimeSlotStartTimeAscOrderInTimeSlotAsc();
+        List<TeachingHourEntity> allHours = teachingHourRepository.findAllOrderByTimeSlotAndOrder();
 
         return allHours.stream()
                 .filter(hour -> isHourAvailableForAssignment(hour, teacherUuid, spaceUuid, groupUuid, dayOfWeek))
@@ -50,7 +50,7 @@ public class TimeSlotService {
 
     public List<TeachingHourEntity> getHoursByTimeSlot(UUID timeSlotUuid) {
         TimeSlotEntity timeSlot = findOrThrow(timeSlotUuid);
-        return teachingHourRepository.findByTimeSlotAndIsActiveTrueOrderByOrderInTimeSlot(timeSlot);
+        return teachingHourRepository.findByTimeSlotOrderByOrderInTimeSlot(timeSlot);
     }
 
     public List<TeachingHourEntity> getAvailableHoursByTimeSlot(UUID timeSlotUuid, String dayOfWeek) {
