@@ -9,9 +9,8 @@ import java.util.List;
 
 @Repository
 public interface LearningSpaceRepository extends BaseRepository<LearningSpaceEntity> {
-    List<LearningSpaceEntity> findByTeachingTypeNameAndIsActiveTrue(String teachingTypeName);
+    List<LearningSpaceEntity> findByTypeUUID_Name(TeachingTypeEntity.ETeachingType name);
 
-    List<LearningSpaceEntity>  findByTypeUUID_Name (TeachingTypeEntity.ETeachingType name);
 
     List<LearningSpaceEntity> findByCapacityGreaterThanEqual(Integer capacidad);
 

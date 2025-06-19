@@ -44,10 +44,11 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
         CourseEntity course = courseService.findCourseOrThrow(courseUuid);
 
         // Determinar tipo de enseñanza requerido
-        String requiredTeachingType = course.getWeeklyPracticeHours() > 0 ? "PRACTICE" : "THEORY";
+        TeachingTypeEntity.ETeachingType requiredType = course.getWeeklyPracticeHours() > 0 ?
+                TeachingTypeEntity.ETeachingType.PRACTICE : TeachingTypeEntity.ETeachingType.THEORY;
 
         List<LearningSpaceEntity> eligibleSpaces = learningSpaceRepository
-                .findByTeachingTypeNameAndIsActiveTrue(requiredTeachingType);
+                .findByTypeUUID_Name(requiredType);
 
         // Si el curso tiene especialidad preferida, priorizar esas aulas
         if (course.getPreferredSpecialty() != null) {
@@ -73,8 +74,10 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
     }
 
     public List<LearningSpaceEntity> getSpacesByTeachingType(String teachingTypeName) {
-        return learningSpaceRepository.findByTeachingTypeNameAndIsActiveTrue(teachingTypeName);
+        TeachingTypeEntity.ETeachingType type = TeachingTypeEntity.ETeachingType.valueOf(teachingTypeName);
+        return learningSpaceRepository.findByTypeUUID_Name(type);
     }
+
 
     private boolean isSpaceAvailableInTimeSlot(LearningSpaceEntity space, String dayOfWeek, TimeSlotEntity timeSlot) {
         // Verificar si el aula está ocupada en ese horario
