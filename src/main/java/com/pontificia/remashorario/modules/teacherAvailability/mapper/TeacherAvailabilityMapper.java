@@ -39,6 +39,7 @@ public class TeacherAvailabilityMapper {
         entity.setDayOfWeek(dto.getDayOfWeek());
         entity.setStartTime(dto.getStartTime());
         entity.setEndTime(dto.getEndTime());
+        entity.setIsAvailable(dto.getIsAvailable());
         entity.setTeacher(teacher);
 
         return entity;

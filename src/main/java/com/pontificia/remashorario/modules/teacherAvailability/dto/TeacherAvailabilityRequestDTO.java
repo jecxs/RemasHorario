@@ -21,5 +21,7 @@ public class TeacherAvailabilityRequestDTO {
 
     @NotNull(message = "La hora de fin es obligatoria")
     private LocalTime endTime;
+    // ✅ Agregar este campo
+    private Boolean isAvailable = true;
 }
 

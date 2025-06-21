@@ -25,7 +25,10 @@ import java.util.UUID;
 @RequestMapping("/api/protected/teachers")
 @RequiredArgsConstructor
 public class TeacherController {
+    private final TeacherService teacherService;
+    private final TeacherAvailabilityService availabilityService;
 
+    
     @GetMapping("/eligible/{courseUuid}")
     public ResponseEntity<ApiResponse<List<TeacherResponseDTO>>> getEligibleTeachers(
             @PathVariable UUID courseUuid,
@@ -40,8 +43,7 @@ public class TeacherController {
         );
     }
 
-    private final TeacherService teacherService;
-    private final TeacherAvailabilityService availabilityService;
+
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<TeacherResponseDTO>>> getAllTeachers() {

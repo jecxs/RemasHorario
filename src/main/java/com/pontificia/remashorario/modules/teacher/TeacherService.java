@@ -82,30 +82,58 @@ public class TeacherService extends BaseService<TeacherEntity> {
                 .orElseThrow(() -> new EntityNotFoundException("Docente no encontrado con ID: " + uuid));
     }
 
+    // En TeacherService - método getEligibleTeachers
     public List<TeacherResponseDTO> getEligibleTeachers(UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
         CourseEntity course = courseService.findCourseOrThrow(courseUuid);
 
-        // Filtrar docentes por área de conocimiento del curso
+        if (course.getTeachingKnowledgeArea() == null) {
+            throw new IllegalStateException("El curso no tiene área de conocimiento definida");
+        }
+
+        // PASO 1: Obtener docentes por área de conocimiento
         List<TeacherEntity> eligibleTeachers = teacherRepository
                 .findByKnowledgeAreasContaining(course.getTeachingKnowledgeArea().getUuid());
 
-        // Si se especifica día, filtrar por disponibilidad
-        if (dayOfWeek != null) {
-            eligibleTeachers = eligibleTeachers.stream()
-                    .filter(teacher -> isTeacherAvailableOnDay(teacher, dayOfWeek))
-                    .collect(Collectors.toList());
+        System.out.println("=== DEBUG TEACHERS ===");
+        System.out.println("Teachers by knowledge area: " + eligibleTeachers.size());
+        System.out.println("DayOfWeek filter: " + dayOfWeek);
+        System.out.println("TimeSlot filter: " + timeSlotUuid);
+
+        // PASO 2: Filtrar por día con logs
+        if (dayOfWeek != null && !dayOfWeek.trim().isEmpty()) {
+            System.out.println("Applying day filter for: " + dayOfWeek);
+
+            List<TeacherEntity> availableTeachers = new ArrayList<>();
+
+            for (TeacherEntity teacher : eligibleTeachers) {
+                boolean available = isTeacherAvailableOnDayWithLogs(teacher, dayOfWeek);
+                System.out.println("Teacher: " + teacher.getFullName() + " available on " + dayOfWeek + ": " + available);
+
+                if (available) {
+                    availableTeachers.add(teacher);
+                }
+            }
+
+            System.out.println("Teachers available after day filter: " + availableTeachers.size());
+            eligibleTeachers = availableTeachers;
         }
 
-        // Si se especifica turno, filtrar por disponibilidad en ese turno
-        if (timeSlotUuid != null) {
+        // PASO 3: Filtrar por turno (solo si pasó el filtro de día)
+        if (timeSlotUuid != null && dayOfWeek != null && !eligibleTeachers.isEmpty()) {
+            System.out.println("Applying time slot filter...");
             TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
             eligibleTeachers = eligibleTeachers.stream()
-                    .filter(teacher -> isTeacherAvailableInTimeSlot(teacher, dayOfWeek, timeSlot))
+                    .filter(teacher -> isTeacherAvailableInTimeSlotWithLogs(teacher, dayOfWeek, timeSlot))
                     .collect(Collectors.toList());
+            System.out.println("Teachers available after time slot filter: " + eligibleTeachers.size());
         }
+
+        System.out.println("Final eligible teachers: " + eligibleTeachers.size());
+        System.out.println("=== END DEBUG ===");
 
         return teacherMapper.toResponseDTOList(eligibleTeachers);
     }
+
 
     public List<TeacherEntity> getTeachersByKnowledgeArea(UUID knowledgeAreaUuid) {
         KnowledgeAreaEntity knowledgeArea = knowledgeAreaService.findOrThrow(knowledgeAreaUuid);
@@ -113,24 +141,87 @@ public class TeacherService extends BaseService<TeacherEntity> {
     }
 
 
-    private boolean isTeacherAvailableOnDay(TeacherEntity teacher, String dayOfWeek) {
-        List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
-                .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+    /// Método con logs para debuggear
+    private boolean isTeacherAvailableOnDayWithLogs(TeacherEntity teacher, String dayOfWeek) {
+        if (dayOfWeek == null || dayOfWeek.trim().isEmpty()) {
+            System.out.println("  -> No day filter, returning true");
+            return true;
+        }
 
-        return availabilities.stream().anyMatch(TeacherAvailabilityEntity::getIsAvailable);
+        try {
+            List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                    .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+            System.out.println("  -> Teacher " + teacher.getFullName() + " has " + availabilities.size() + " availabilities for " + dayOfWeek);
+
+            // CAMBIO IMPORTANTE: Si no tiene disponibilidades, lo incluimos
+            if (availabilities.isEmpty()) {
+                System.out.println("  -> No availabilities found, INCLUDING teacher (assuming available)");
+                return true;  // ESTE ES EL CAMBIO CLAVE
+            }
+
+            // Verificar si tiene al menos una disponibilidad activa
+            boolean hasActiveAvailability = availabilities.stream().anyMatch(availability -> {
+                boolean isAvailable = availability != null &&
+                        availability.getIsAvailable() != null &&
+                        availability.getIsAvailable();
+
+                System.out.println("    -> Availability: " + availability.getStartTime() + "-" + availability.getEndTime() +
+                        " isAvailable: " + availability.getIsAvailable() + " -> " + isAvailable);
+
+                return isAvailable;
+            });
+
+            System.out.println("  -> Has active availability: " + hasActiveAvailability);
+            return hasActiveAvailability;
+
+        } catch (IllegalArgumentException e) {
+            System.out.println("  -> Invalid day format: " + dayOfWeek + ", INCLUDING teacher");
+            return true;
+        }
     }
 
-    private boolean isTeacherAvailableInTimeSlot(TeacherEntity teacher, String dayOfWeek, TimeSlotEntity timeSlot) {
-        if (dayOfWeek == null) return true;
+    // Método con logs para turno
+    private boolean isTeacherAvailableInTimeSlotWithLogs(TeacherEntity teacher, String dayOfWeek, TimeSlotEntity timeSlot) {
+        if (dayOfWeek == null || timeSlot == null) return true;
 
-        List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
-                .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+        try {
+            List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                    .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
 
-        return availabilities.stream().anyMatch(availability ->
-                availability.getIsAvailable() &&
+            System.out.println("  -> Checking time slot for " + teacher.getFullName());
+            System.out.println("  -> Time slot: " + timeSlot.getStartTime() + "-" + timeSlot.getEndTime());
+
+            // Si no tiene disponibilidades, lo incluimos
+            if (availabilities.isEmpty()) {
+                System.out.println("  -> No availabilities for time slot check, INCLUDING");
+                return true;
+            }
+
+            boolean fits = availabilities.stream().anyMatch(availability -> {
+                boolean isAvailable = availability != null &&
+                        availability.getIsAvailable() != null &&
+                        availability.getIsAvailable() &&
+                        timeSlot.getStartTime() != null &&
+                        timeSlot.getEndTime() != null &&
+                        availability.getStartTime() != null &&
+                        availability.getEndTime() != null &&
                         timeSlot.getStartTime().compareTo(availability.getStartTime()) >= 0 &&
-                        timeSlot.getEndTime().compareTo(availability.getEndTime()) <= 0
-        );
+                        timeSlot.getEndTime().compareTo(availability.getEndTime()) <= 0;
+
+                System.out.println("    -> Availability " + availability.getStartTime() + "-" + availability.getEndTime() +
+                        " fits time slot: " + isAvailable);
+
+                return isAvailable;
+            });
+
+            System.out.println("  -> Time slot fits: " + fits);
+            return fits;
+
+        } catch (Exception e) {
+            System.out.println("  -> Error in time slot check: " + e.getMessage() + ", INCLUDING");
+            return true;
+        }
     }
 
 
