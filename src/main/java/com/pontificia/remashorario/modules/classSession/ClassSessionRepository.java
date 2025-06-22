@@ -8,16 +8,29 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface ClassSessionRepository extends BaseRepository<ClassSessionEntity> {
 
-    @Query("SELECT cs FROM ClassSessionEntity cs " +
-            "WHERE cs.dayOfWeek = :dayOfWeek " +
-            "AND (cs.teacher.uuid = :teacherUuid OR cs.learningSpace.uuid = :spaceUuid OR cs.studentGroup.uuid = :groupUuid) " +
-            "AND EXISTS (SELECT th FROM cs.teachingHours th WHERE th.startTime < :endTime AND th.endTime > :startTime)")
+    @Query(value = """
+    SELECT cs.* FROM class_session cs 
+    WHERE cs.day_of_week = :dayOfWeek 
+    AND (
+        (:teacherUuid IS NULL OR cs.teacher_id = :teacherUuid) AND
+        (:spaceUuid IS NULL OR cs.learning_space_id = :spaceUuid) AND
+        (:groupUuid IS NULL OR cs.student_group_id = :groupUuid)
+    )
+    AND EXISTS (
+        SELECT 1 FROM class_session_teaching_hour csth 
+        JOIN teaching_hour th ON th.uuid = csth.teaching_hour_id 
+        WHERE csth.class_session_id = cs.uuid 
+        AND th.start_time < CAST(:endTime AS TIME) 
+        AND th.end_time > CAST(:startTime AS TIME)
+    )
+    """, nativeQuery = true)
     List<ClassSessionEntity> findConflicts(
             @Param("teacherUuid") UUID teacherUuid,
             @Param("spaceUuid") UUID spaceUuid,
@@ -26,15 +39,25 @@ public interface ClassSessionRepository extends BaseRepository<ClassSessionEntit
             @Param("startTime") String startTime,
             @Param("endTime") String endTime);
 
-    @Query("SELECT cs FROM ClassSessionEntity cs " +
-            "WHERE cs.learningSpace = :space " +
-            "AND cs.dayOfWeek = :dayOfWeek " +
-            "AND EXISTS (SELECT th FROM cs.teachingHours th WHERE th.startTime < :endTime AND th.endTime > :startTime)")
+    // ✅ SOLUCIÓN: Usar query nativa para SQL Server
+    @Query(value = """
+        SELECT cs.* FROM class_session cs 
+        WHERE cs.learning_space_id = :spaceId 
+        AND cs.day_of_week = :dayOfWeek 
+        AND EXISTS (
+            SELECT 1 FROM class_session_teaching_hour csth 
+            JOIN teaching_hour th ON th.uuid = csth.teaching_hour_id 
+            WHERE csth.class_session_id = cs.uuid 
+            AND th.start_time < CAST(:endTime AS TIME) 
+            AND th.end_time > CAST(:startTime AS TIME)
+        )
+        """, nativeQuery = true)
     List<ClassSessionEntity> findByLearningSpaceAndDayOfWeekAndTimeSlotOverlap(
-            @Param("space") LearningSpaceEntity space,
-            @Param("dayOfWeek") DayOfWeek dayOfWeek,
+            @Param("spaceId") UUID spaceId,
+            @Param("dayOfWeek") String dayOfWeek,
             @Param("startTime") String startTime,
             @Param("endTime") String endTime);
+
 
     List<ClassSessionEntity> findByDayOfWeekAndTeachingHoursContaining(DayOfWeek dayOfWeek, TeachingHourEntity teachingHour);
 

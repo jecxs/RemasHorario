@@ -83,9 +83,9 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
         // Verificar si el aula está ocupada en ese horario
         List<ClassSessionEntity> occupiedSessions = classSessionRepository
                 .findByLearningSpaceAndDayOfWeekAndTimeSlotOverlap(
-                        space,
-                        DayOfWeek.valueOf(dayOfWeek.toUpperCase()),
-                        timeSlot.getStartTime().toString(),
+                        space.getUuid(),  // ✅ Pasar UUID en lugar de entidad
+                        dayOfWeek.toUpperCase(),  // ✅ String directo
+                        timeSlot.getStartTime().toString(),  // ✅ Convertir LocalTime a String
                         timeSlot.getEndTime().toString());
 
         return occupiedSessions.isEmpty();

@@ -36,16 +36,6 @@ public class StudentGroupMapper {
             return null;
         }
 
-        // Si decides usar CycleResponseDTO completo, necesitarías el CycleMapper aquí
-        // CycleResponseDTO cycleResponseDTO = null;
-        // if (entity.getCycle() != null) {
-        //     cycleResponseDTO = CycleResponseDTO.builder()
-        //             .uuid(entity.getCycle().getUuid())
-        //             .number(entity.getCycle().getNumber())
-        //             .career(CareerMapper.toDto(entity.getCycle().getCareer())) // Usar tu CareerMapper estático
-        //             .build();
-        // }
-
         return StudentGroupResponseDTO.builder()
                 .uuid(entity.getUuid())
                 .name(entity.getName())
@@ -53,7 +43,20 @@ public class StudentGroupMapper {
                 .cycleNumber(entity.getCycle() != null ? entity.getCycle().getNumber() : null)
                 .periodUuid(entity.getPeriod() != null ? entity.getPeriod().getUuid() : null)
                 .periodName(entity.getPeriod() != null ? entity.getPeriod().getName() : null)
-                // .cycle(cycleResponseDTO) // Si decides usar el DTO completo
+
+                // ✅ AGREGAR: Información de la carrera
+                .careerUuid(entity.getCycle() != null && entity.getCycle().getCareer() != null ?
+                        entity.getCycle().getCareer().getUuid() : null)
+                .careerName(entity.getCycle() != null && entity.getCycle().getCareer() != null ?
+                        entity.getCycle().getCareer().getName() : null)
+                .modalityUuid(entity.getCycle() != null &&
+                        entity.getCycle().getCareer() != null &&
+                        entity.getCycle().getCareer().getModality() != null ?
+                        entity.getCycle().getCareer().getModality().getUuid() : null)
+                .modalityName(entity.getCycle() != null &&
+                        entity.getCycle().getCareer() != null &&
+                        entity.getCycle().getCareer().getModality() != null ?
+                        entity.getCycle().getCareer().getModality().getName() : null)
                 .build();
     }
 

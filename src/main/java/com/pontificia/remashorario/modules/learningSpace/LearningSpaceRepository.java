@@ -9,6 +9,7 @@ import java.util.List;
 
 @Repository
 public interface LearningSpaceRepository extends BaseRepository<LearningSpaceEntity> {
+    
     List<LearningSpaceEntity> findByTypeUUID_Name(TeachingTypeEntity.ETeachingType name);
 
 

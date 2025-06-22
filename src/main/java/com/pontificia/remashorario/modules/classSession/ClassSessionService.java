@@ -142,6 +142,11 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
     }
 
     public ValidationResultDTO validateAssignmentInRealTime(ClassSessionValidationDTO dto) {
+        return validateAssignmentInRealTime(dto, null); // Para creación
+    }
+
+
+    public ValidationResultDTO validateAssignmentInRealTime(ClassSessionValidationDTO dto, UUID excludeSessionUuid) {
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         List<String> suggestions = new ArrayList<>();
@@ -171,24 +176,23 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
             }
 
             // Validar capacidad del aula
-            if (space.getCapacity() < 25) { // Asumiendo mínimo 25 estudiantes por grupo
+            if (space.getCapacity() < 25) {
                 warnings.add("El aula podría ser pequeña para el grupo");
                 suggestions.add("Considerar un aula con mayor capacidad");
             }
 
             // Validar tipo de aula vs tipo de curso
-            boolean isTheoryOnlyClass = course.getWeeklyPracticeHours() == 0;
             boolean isPracticeClass = course.getWeeklyPracticeHours() > 0;
-
             if (isPracticeClass && !"PRACTICE".equals(space.getTypeUUID().getName().name())) {
                 warnings.add("Curso práctico asignado a aula teórica");
                 suggestions.add("Recomendado: Usar un laboratorio para mejor experiencia de aprendizaje");
-                severity = "MEDIUM";
+                if (severity.equals("LOW")) severity = "MEDIUM";
             }
 
-            // Verificar conflictos de horario
+            // ✅ CORRECCIÓN PRINCIPAL: Verificar conflictos excluyendo la sesión actual
             List<ClassSessionEntity> conflicts = findConflictsForAssignment(
-                    teacher.getUuid(), space.getUuid(), group.getUuid(), dto.getDayOfWeek(), hours);
+                    teacher.getUuid(), space.getUuid(), group.getUuid(),
+                    dto.getDayOfWeek(), hours, excludeSessionUuid); // ✅ Agregar excludeSessionUuid
 
             if (!conflicts.isEmpty()) {
                 errors.add("Existe conflicto de horario");
@@ -212,17 +216,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
             if (totalMinutes > 180) { // Más de 3 horas
                 warnings.add("Sesión muy larga (más de 3 horas)");
                 suggestions.add("Considerar dividir en sesiones más cortas");
-                severity = severity.equals("LOW") ? "MEDIUM" : severity;
-            }
-
-            // Validar horario pedagógicamente óptimo
-            boolean isOptimalTime = hours.stream().anyMatch(hour -> {
-                int startHour = hour.getStartTime().getHour();
-                return startHour >= 8 && startHour <= 16;
-            });
-
-            if (!isOptimalTime) {
-                suggestions.add("Horario fuera del rango pedagógicamente óptimo (8:00-16:00)");
+                if (severity.equals("LOW")) severity = "MEDIUM";
             }
 
         } catch (Exception e) {
@@ -239,9 +233,55 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
                 .severity(severity)
                 .build();
     }
+    // 2. ✅ NUEVO MÉTODO: findConflictsForAssignment con exclusión
+    private List<ClassSessionEntity> findConflictsForAssignment(
+            UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek,
+            Set<TeachingHourEntity> hours, UUID excludeSessionUuid) {
 
+        List<ClassSessionEntity> allConflicts = new ArrayList<>();
+
+        for (TeachingHourEntity hour : hours) {
+            // Buscar conflictos separadamente para cada recurso
+
+            // ✅ Conflictos de DOCENTE
+            List<ClassSessionEntity> teacherConflicts = classSessionRepository.findConflicts(
+                    teacherUuid, null, null, // Solo pasar teacherUuid
+                    dayOfWeek.toUpperCase(),
+                    hour.getStartTime().toString(),
+                    hour.getEndTime().toString());
+
+            // ✅ Conflictos de AULA
+            List<ClassSessionEntity> spaceConflicts = classSessionRepository.findConflicts(
+                    null, spaceUuid, null, // Solo pasar spaceUuid
+                    dayOfWeek.toUpperCase(),
+                    hour.getStartTime().toString(),
+                    hour.getEndTime().toString());
+
+            // ✅ Conflictos de GRUPO
+            List<ClassSessionEntity> groupConflicts = classSessionRepository.findConflicts(
+                    null, null, groupUuid, // Solo pasar groupUuid
+                    dayOfWeek.toUpperCase(),
+                    hour.getStartTime().toString(),
+                    hour.getEndTime().toString());
+
+            allConflicts.addAll(teacherConflicts);
+            allConflicts.addAll(spaceConflicts);
+            allConflicts.addAll(groupConflicts);
+        }
+
+        // ✅ Eliminar duplicados y excluir la sesión actual si es edición
+        return allConflicts.stream()
+                .distinct()
+                .filter(session -> excludeSessionUuid == null || !session.getUuid().equals(excludeSessionUuid))
+                .collect(Collectors.toList());
+    }
+
+    // 3. ✅ ACTUALIZAR el método checkConflicts para modo edición
     public ValidationResultDTO checkConflicts(ClassSessionRequestDTO dto) {
-        // Similar a validateAssignmentInRealTime pero solo verificando conflictos
+        return checkConflicts(dto, null);
+    }
+
+    public ValidationResultDTO checkConflicts(ClassSessionRequestDTO dto, UUID excludeSessionUuid) {
         return validateAssignmentInRealTime(ClassSessionValidationDTO.builder()
                 .courseUuid(dto.getCourseUuid())
                 .teacherUuid(dto.getTeacherUuid())
@@ -249,7 +289,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
                 .studentGroupUuid(dto.getStudentGroupUuid())
                 .dayOfWeek(dto.getDayOfWeek().name())
                 .teachingHourUuids(dto.getTeachingHourUuids())
-                .build());
+                .build(), excludeSessionUuid);
     }
 
     private String determineConflictType(List<ClassSessionEntity> conflicts, UUID teacherUuid, UUID spaceUuid, UUID groupUuid) {
@@ -272,10 +312,11 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         List<ClassSessionEntity> allConflicts = new ArrayList<>();
 
         for (TeachingHourEntity hour : hours) {
-            // Buscar sesiones que usen el mismo docente, aula o grupo en el mismo día y hora
             List<ClassSessionEntity> conflicts = classSessionRepository.findConflicts(
-                    teacherUuid, spaceUuid, groupUuid, dayOfWeek,
-                    hour.getStartTime().toString(), hour.getEndTime().toString());
+                    teacherUuid, spaceUuid, groupUuid,
+                    dayOfWeek.toUpperCase(),
+                    hour.getStartTime().toString(),
+                    hour.getEndTime().toString());
             allConflicts.addAll(conflicts);
         }
 

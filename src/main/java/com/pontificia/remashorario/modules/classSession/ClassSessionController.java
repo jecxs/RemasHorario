@@ -36,17 +36,18 @@ public class ClassSessionController {
 
     @PostMapping("/validate")
     public ResponseEntity<ValidationResultDTO> validateAssignmentInRealTime(
-            @Valid @RequestBody ClassSessionValidationDTO dto) {
+            @Valid @RequestBody ClassSessionValidationDTO dto,
+            @RequestParam(required = false) UUID excludeSessionUuid) { // ✅ AGREGAR parámetro
 
-        ValidationResultDTO result = classSessionService.validateAssignmentInRealTime(dto);
+        ValidationResultDTO result = classSessionService.validateAssignmentInRealTime(dto, excludeSessionUuid);
         return ResponseEntity.ok(result);
     }
-
     @PostMapping("/check-conflicts")
     public ResponseEntity<ValidationResultDTO> checkConflicts(
-            @Valid @RequestBody ClassSessionRequestDTO dto) {
+            @Valid @RequestBody ClassSessionRequestDTO dto,
+            @RequestParam(required = false) UUID excludeSessionUuid) { // ✅ AGREGAR parámetro
 
-        ValidationResultDTO result = classSessionService.checkConflicts(dto);
+        ValidationResultDTO result = classSessionService.checkConflicts(dto, excludeSessionUuid);
         return ResponseEntity.ok(result);
     }
 

@@ -13,10 +13,14 @@ import java.util.UUID;
 public class StudentGroupResponseDTO {
     private UUID uuid;
     private String name;
-    private UUID cycleUuid; // Agregamos el UUID del ciclo
-    private Integer cycleNumber; // Agregamos el número del ciclo para fácil visualización
+    private UUID cycleUuid;
+    private Integer cycleNumber;
     private UUID periodUuid;
     private String periodName;
-    // Si realmente necesitas el DTO completo del ciclo, puedes usar:
-    // private CycleResponseDTO cycle;
+
+    // ✅ AGREGAR: Información de la carrera
+    private UUID careerUuid;
+    private String careerName;
+    private UUID modalityUuid;      // Opcional
+    private String modalityName;    // Opcional
 }

@@ -6,15 +6,13 @@ import com.pontificia.remashorario.modules.TimeSlot.TimeSlotEntity;
 import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentEntity;
 import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentService;
 import com.pontificia.remashorario.modules.course.CourseEntity;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherFilterDTO;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherRequestDTO;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherResponseDTO;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherUpdateDTO;
+import com.pontificia.remashorario.modules.teacher.dto.*;
 import com.pontificia.remashorario.modules.teacher.mapper.TeacherMapper;
 
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityEntity;
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityRepository;
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherWithAvailabilitiesDTO;
+import com.pontificia.remashorario.modules.teacherAvailability.mapper.TeacherAvailabilityMapper;
 import com.pontificia.remashorario.modules.user.UserService;
 import com.pontificia.remashorario.modules.course.CourseService;
 import com.pontificia.remashorario.modules.TimeSlot.TimeSlotService;
@@ -40,6 +38,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
     private final CourseService courseService;
     private final TimeSlotService timeSlotService;
     private final TeacherAvailabilityRepository teacherAvailabilityRepository;
+    private final TeacherAvailabilityMapper teacherAvailabilityMapper;
 
     @Autowired
     public TeacherService(TeacherRepository teacherRepository,
@@ -49,7 +48,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
                           UserService userService,
                           CourseService courseService,
                           TimeSlotService timeSlotService,
-                          TeacherAvailabilityRepository teacherAvailabilityRepository) {
+                          TeacherAvailabilityRepository teacherAvailabilityRepository, TeacherAvailabilityMapper teacherAvailabilityMapper) {
         super(teacherRepository);
         this.teacherRepository = teacherRepository;
         this.teacherMapper = teacherMapper;
@@ -59,6 +58,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
         this.courseService = courseService;
         this.timeSlotService = timeSlotService;
         this.teacherAvailabilityRepository = teacherAvailabilityRepository;
+        this.teacherAvailabilityMapper = teacherAvailabilityMapper;
     }
 
     public List<TeacherResponseDTO> getAllTeachers() {
@@ -80,6 +80,111 @@ public class TeacherService extends BaseService<TeacherEntity> {
     public TeacherEntity findTeacherOrThrow(UUID uuid) {
         return findById(uuid)
                 .orElseThrow(() -> new EntityNotFoundException("Docente no encontrado con ID: " + uuid));
+    }
+
+    public List<TeacherEligibilityResponseDTO> getEligibleTeachersWithAvailability(
+            UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
+
+        CourseEntity course = courseService.findCourseOrThrow(courseUuid);
+
+        // PASO 1: Obtener TODOS los docentes por área de conocimiento
+        List<TeacherEntity> eligibleTeachers = teacherRepository
+                .findByKnowledgeAreasContaining(course.getTeachingKnowledgeArea().getUuid());
+
+        // PASO 2: Evaluar disponibilidad para cada docente
+        List<TeacherEligibilityResponseDTO> result = new ArrayList<>();
+
+        for (TeacherEntity teacher : eligibleTeachers) {
+            TeacherEligibilityResponseDTO dto = buildTeacherEligibilityResponse(
+                    teacher, dayOfWeek, timeSlotUuid);
+            result.add(dto);
+        }
+
+        // PASO 3: Ordenar por disponibilidad (disponibles primero)
+        result.sort((a, b) -> {
+            if (a.getIsAvailableForTimeSlot() && !b.getIsAvailableForTimeSlot()) return -1;
+            if (!a.getIsAvailableForTimeSlot() && b.getIsAvailableForTimeSlot()) return 1;
+            return a.getFullName().compareTo(b.getFullName());
+        });
+
+        return result;
+    }
+
+    private TeacherEligibilityResponseDTO buildTeacherEligibilityResponse(
+            TeacherEntity teacher, String dayOfWeek, UUID timeSlotUuid) {
+
+        TeacherResponseDTO basicInfo = teacherMapper.toResponseDTO(teacher);
+
+        // Evaluar disponibilidad
+        boolean isAvailable = false;
+        String status = "NOT_AVAILABLE";
+        List<TeacherAvailabilityEntity> dayAvailabilities = new ArrayList<>();
+        String recommendedSlots = "";
+
+        if (dayOfWeek != null) {
+            try {
+                dayAvailabilities = teacherAvailabilityRepository
+                        .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+                if (dayAvailabilities.isEmpty()) {
+                    status = "NO_SCHEDULE_CONFIGURED";
+                    recommendedSlots = "Sin horario configurado";
+                } else {
+                    // Verificar disponibilidad específica para el turno
+                    if (timeSlotUuid != null) {
+                        TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
+                        isAvailable = isTeacherAvailableInSpecificTimeSlot(teacher, dayOfWeek, timeSlot);
+                        status = isAvailable ? "AVAILABLE" : "TIME_CONFLICT";
+                    } else {
+                        // Si no hay turno específico, verificar si tiene disponibilidades activas
+                        isAvailable = dayAvailabilities.stream()
+                                .anyMatch(av -> av.getIsAvailable() != null && av.getIsAvailable());
+                        status = isAvailable ? "AVAILABLE" : "NOT_AVAILABLE";
+                    }
+
+                    // Generar recomendaciones de horarios
+                    recommendedSlots = generateRecommendedTimeSlots(dayAvailabilities);
+                }
+            } catch (Exception e) {
+                status = "ERROR";
+                recommendedSlots = "Error al verificar disponibilidad";
+            }
+        }
+
+        return TeacherEligibilityResponseDTO.builder()
+                .uuid(basicInfo.getUuid())
+                .fullName(basicInfo.getFullName())
+                .email(basicInfo.getEmail())
+                .department(basicInfo.getDepartment())
+                .knowledgeAreas(basicInfo.getKnowledgeAreas())
+                .hasUserAccount(basicInfo.getHasUserAccount())
+                .isAvailableForTimeSlot(isAvailable)
+                .availabilityStatus(status)
+                .availabilitiesForDay(teacherAvailabilityMapper.toResponseDTOList(dayAvailabilities))
+                .recommendedTimeSlots(recommendedSlots)
+                .build();
+    }
+    private boolean isTeacherAvailableInSpecificTimeSlot(TeacherEntity teacher, String dayOfWeek, TimeSlotEntity timeSlot) {
+        try {
+            List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                    .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+            return availabilities.stream().anyMatch(availability ->
+                    availability.getIsAvailable() != null &&
+                            availability.getIsAvailable() &&
+                            timeSlot.getStartTime().compareTo(availability.getStartTime()) >= 0 &&
+                            timeSlot.getEndTime().compareTo(availability.getEndTime()) <= 0
+            );
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    private String generateRecommendedTimeSlots(List<TeacherAvailabilityEntity> availabilities) {
+        return availabilities.stream()
+                .filter(av -> av.getIsAvailable() != null && av.getIsAvailable())
+                .map(av -> av.getStartTime().toString().substring(0, 5) + "-" +
+                        av.getEndTime().toString().substring(0, 5))
+                .collect(Collectors.joining(", "));
     }
 
     // En TeacherService - método getEligibleTeachers

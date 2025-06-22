@@ -1,10 +1,7 @@
 package com.pontificia.remashorario.modules.teacher;
 
 import com.pontificia.remashorario.config.ApiResponse;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherFilterDTO;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherRequestDTO;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherResponseDTO;
-import com.pontificia.remashorario.modules.teacher.dto.TeacherUpdateDTO;
+import com.pontificia.remashorario.modules.teacher.dto.*;
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityService;
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherAvailabilityRequestDTO;
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherAvailabilityResponseDTO;
@@ -27,6 +24,20 @@ import java.util.UUID;
 public class TeacherController {
     private final TeacherService teacherService;
     private final TeacherAvailabilityService availabilityService;
+
+    @GetMapping("/eligible-detailed/{courseUuid}")
+    public ResponseEntity<ApiResponse<List<TeacherEligibilityResponseDTO>>> getEligibleTeachersDetailed(
+            @PathVariable UUID courseUuid,
+            @RequestParam(required = false) String dayOfWeek,
+            @RequestParam(required = false) UUID timeSlotUuid) {
+
+        List<TeacherEligibilityResponseDTO> eligibleTeachers = teacherService
+                .getEligibleTeachersWithAvailability(courseUuid, dayOfWeek, timeSlotUuid);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(eligibleTeachers, "Docentes elegibles con detalle recuperados con éxito")
+        );
+    }
 
     
     @GetMapping("/eligible/{courseUuid}")
