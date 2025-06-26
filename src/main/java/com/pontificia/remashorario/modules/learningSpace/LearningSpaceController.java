@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,14 +19,42 @@ import java.util.UUID;
 public class LearningSpaceController {
     private final LearningSpaceService learningSpaceService;
 
+
     @GetMapping("/eligible/{courseUuid}")
     public ResponseEntity<ApiResponse<List<LearningSpaceResponseDTO>>> getEligibleSpaces(
             @PathVariable UUID courseUuid,
             @RequestParam(required = false) String dayOfWeek,
-            @RequestParam(required = false) UUID timeSlotUuid) {
+            @RequestParam(required = false) UUID timeSlotUuid,
+            @RequestParam(required = false) String teachingHourUuids,
+            @RequestParam(required = false) String sessionType) { // ✅ NUEVO PARÁMETRO
 
-        List<LearningSpaceResponseDTO> eligibleSpaces = learningSpaceService.getEligibleSpaces(
-                courseUuid, dayOfWeek, timeSlotUuid);
+        System.out.println("=== ELIGIBLE SPACES REQUEST (UPDATED) ===");
+        System.out.println("Course UUID: " + courseUuid);
+        System.out.println("Day of Week: " + dayOfWeek);
+        System.out.println("TimeSlot UUID: " + timeSlotUuid);
+        System.out.println("Teaching Hour UUIDs (raw): " + teachingHourUuids);
+        System.out.println("Session Type: " + sessionType); // ✅ NUEVO LOG
+
+        List<LearningSpaceResponseDTO> eligibleSpaces;
+
+        // ✅ Si se proporcionan horas específicas, usar esas
+        if (teachingHourUuids != null && !teachingHourUuids.trim().isEmpty()) {
+            List<String> hourUuidsList = Arrays.asList(teachingHourUuids.split(","));
+            System.out.println("Parsed Teaching Hour UUIDs: " + hourUuidsList);
+
+            // ✅ PASAR EL SESSION TYPE AL SERVICIO
+            eligibleSpaces = learningSpaceService.getEligibleSpacesForSpecificHours(
+                    courseUuid, dayOfWeek, hourUuidsList, sessionType);
+        } else {
+            System.out.println("No specific hours provided, using timeslot-based logic");
+            eligibleSpaces = learningSpaceService.getEligibleSpaces(
+                    courseUuid, dayOfWeek, timeSlotUuid);
+        }
+
+        System.out.println("Found " + eligibleSpaces.size() + " eligible spaces");
+        eligibleSpaces.forEach(space ->
+                System.out.println("  - " + space.getName() + " (" + space.getTeachingType().getName() + ")")
+        );
 
         return ResponseEntity.ok(
                 ApiResponse.success(eligibleSpaces, "Aulas elegibles recuperadas con éxito")

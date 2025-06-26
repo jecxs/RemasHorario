@@ -13,6 +13,8 @@ import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabili
 import com.pontificia.remashorario.modules.teacherAvailability.TeacherAvailabilityRepository;
 import com.pontificia.remashorario.modules.teacherAvailability.dto.TeacherWithAvailabilitiesDTO;
 import com.pontificia.remashorario.modules.teacherAvailability.mapper.TeacherAvailabilityMapper;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourRepository;
 import com.pontificia.remashorario.modules.user.UserService;
 import com.pontificia.remashorario.modules.course.CourseService;
 import com.pontificia.remashorario.modules.TimeSlot.TimeSlotService;
@@ -39,6 +41,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
     private final TimeSlotService timeSlotService;
     private final TeacherAvailabilityRepository teacherAvailabilityRepository;
     private final TeacherAvailabilityMapper teacherAvailabilityMapper;
+    private final TeachingHourRepository teachingHourRepository;
 
     @Autowired
     public TeacherService(TeacherRepository teacherRepository,
@@ -48,7 +51,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
                           UserService userService,
                           CourseService courseService,
                           TimeSlotService timeSlotService,
-                          TeacherAvailabilityRepository teacherAvailabilityRepository, TeacherAvailabilityMapper teacherAvailabilityMapper) {
+                          TeacherAvailabilityRepository teacherAvailabilityRepository, TeacherAvailabilityMapper teacherAvailabilityMapper, TeachingHourRepository teachingHourRepository) {
         super(teacherRepository);
         this.teacherRepository = teacherRepository;
         this.teacherMapper = teacherMapper;
@@ -59,6 +62,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
         this.timeSlotService = timeSlotService;
         this.teacherAvailabilityRepository = teacherAvailabilityRepository;
         this.teacherAvailabilityMapper = teacherAvailabilityMapper;
+        this.teachingHourRepository = teachingHourRepository;
     }
 
     public List<TeacherResponseDTO> getAllTeachers() {
@@ -83,24 +87,20 @@ public class TeacherService extends BaseService<TeacherEntity> {
     }
 
     public List<TeacherEligibilityResponseDTO> getEligibleTeachersWithAvailability(
-            UUID courseUuid, String dayOfWeek, UUID timeSlotUuid) {
+            UUID courseUuid, String dayOfWeek, UUID timeSlotUuid, List<UUID> specificHourUuids) { // ✅ NUEVO PARÁMETRO
 
         CourseEntity course = courseService.findCourseOrThrow(courseUuid);
-
-        // PASO 1: Obtener TODOS los docentes por área de conocimiento
         List<TeacherEntity> eligibleTeachers = teacherRepository
                 .findByKnowledgeAreasContaining(course.getTeachingKnowledgeArea().getUuid());
 
-        // PASO 2: Evaluar disponibilidad para cada docente
         List<TeacherEligibilityResponseDTO> result = new ArrayList<>();
 
         for (TeacherEntity teacher : eligibleTeachers) {
             TeacherEligibilityResponseDTO dto = buildTeacherEligibilityResponse(
-                    teacher, dayOfWeek, timeSlotUuid);
+                    teacher, dayOfWeek, timeSlotUuid, specificHourUuids); // ✅ PASAR HORAS
             result.add(dto);
         }
 
-        // PASO 3: Ordenar por disponibilidad (disponibles primero)
         result.sort((a, b) -> {
             if (a.getIsAvailableForTimeSlot() && !b.getIsAvailableForTimeSlot()) return -1;
             if (!a.getIsAvailableForTimeSlot() && b.getIsAvailableForTimeSlot()) return 1;
@@ -110,12 +110,13 @@ public class TeacherService extends BaseService<TeacherEntity> {
         return result;
     }
 
+
+    // ✅ MÉTODO ACTUALIZADO
     private TeacherEligibilityResponseDTO buildTeacherEligibilityResponse(
-            TeacherEntity teacher, String dayOfWeek, UUID timeSlotUuid) {
+            TeacherEntity teacher, String dayOfWeek, UUID timeSlotUuid, List<UUID> specificHourUuids) {
 
         TeacherResponseDTO basicInfo = teacherMapper.toResponseDTO(teacher);
 
-        // Evaluar disponibilidad
         boolean isAvailable = false;
         String status = "NOT_AVAILABLE";
         List<TeacherAvailabilityEntity> dayAvailabilities = new ArrayList<>();
@@ -130,19 +131,23 @@ public class TeacherService extends BaseService<TeacherEntity> {
                     status = "NO_SCHEDULE_CONFIGURED";
                     recommendedSlots = "Sin horario configurado";
                 } else {
-                    // Verificar disponibilidad específica para el turno
-                    if (timeSlotUuid != null) {
+                    // ✅ LÓGICA MEJORADA: Usar horas específicas si están disponibles
+                    if (specificHourUuids != null && !specificHourUuids.isEmpty()) {
+                        isAvailable = isTeacherAvailableForSpecificHours(teacher, dayOfWeek, specificHourUuids);
+                        status = isAvailable ? "AVAILABLE" : "TIME_CONFLICT";
+                        System.out.println("Checked specific hours for " + teacher.getFullName() + ": " + isAvailable);
+                    } else if (timeSlotUuid != null) {
+                        // Fallback al método anterior
                         TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
-                        isAvailable = isTeacherAvailableInSpecificTimeSlot(teacher, dayOfWeek, timeSlot);
+                        isAvailable = isTeacherAvailableForAnyHourInTimeSlot(teacher, dayOfWeek, timeSlot);
                         status = isAvailable ? "AVAILABLE" : "TIME_CONFLICT";
                     } else {
-                        // Si no hay turno específico, verificar si tiene disponibilidades activas
+                        // Sin restricciones específicas
                         isAvailable = dayAvailabilities.stream()
                                 .anyMatch(av -> av.getIsAvailable() != null && av.getIsAvailable());
                         status = isAvailable ? "AVAILABLE" : "NOT_AVAILABLE";
                     }
 
-                    // Generar recomendaciones de horarios
                     recommendedSlots = generateRecommendedTimeSlots(dayAvailabilities);
                 }
             } catch (Exception e) {
@@ -164,6 +169,69 @@ public class TeacherService extends BaseService<TeacherEntity> {
                 .recommendedTimeSlots(recommendedSlots)
                 .build();
     }
+
+    // ✅ NUEVO MÉTODO: Verificar disponibilidad para horas específicas por UUID
+    private boolean isTeacherAvailableForSpecificHours(TeacherEntity teacher, String dayOfWeek, List<UUID> hourUuids) {
+        try {
+            // Obtener las horas pedagógicas
+            List<TeachingHourEntity> teachingHours = hourUuids.stream()
+                    .map(uuid -> teachingHourRepository.findById(uuid)
+                            .orElseThrow(() -> new EntityNotFoundException("Teaching hour not found: " + uuid)))
+                    .collect(Collectors.toList());
+
+            // Obtener disponibilidades del docente
+            List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                    .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+            // Verificar que todas las horas estén cubiertas por las disponibilidades
+            for (TeachingHourEntity hour : teachingHours) {
+                boolean hourCovered = availabilities.stream().anyMatch(availability ->
+                        availability.getIsAvailable() != null &&
+                                availability.getIsAvailable() &&
+                                hour.getStartTime().compareTo(availability.getStartTime()) >= 0 &&
+                                hour.getEndTime().compareTo(availability.getEndTime()) <= 0
+                );
+
+                if (!hourCovered) {
+                    System.out.println("Hour " + hour.getStartTime() + "-" + hour.getEndTime() +
+                            " not covered for " + teacher.getFullName());
+                    return false;
+                }
+            }
+
+            System.out.println("All specific hours covered for " + teacher.getFullName());
+            return true;
+
+        } catch (Exception e) {
+            System.out.println("Error checking specific hours for " + teacher.getFullName() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ✅ MÉTODO AUXILIAR: Verificar si el docente está disponible para ALGUNA hora del turno
+    private boolean isTeacherAvailableForAnyHourInTimeSlot(
+            TeacherEntity teacher, String dayOfWeek, TimeSlotEntity timeSlot) {
+
+        try {
+            List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository
+                    .findByTeacherAndDayOfWeek(teacher, DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+            // Verificar si ALGUNA hora pedagógica del turno está dentro de la disponibilidad
+            return timeSlot.getTeachingHours().stream().anyMatch(teachingHour ->
+                    availabilities.stream().anyMatch(availability ->
+                            availability.getIsAvailable() != null &&
+                                    availability.getIsAvailable() &&
+                                    teachingHour.getStartTime().compareTo(availability.getStartTime()) >= 0 &&
+                                    teachingHour.getEndTime().compareTo(availability.getEndTime()) <= 0
+                    )
+            );
+
+        } catch (Exception e) {
+            System.out.println("Error checking availability for any hour in timeslot: " + e.getMessage());
+            return false;
+        }
+    }
+
     private boolean isTeacherAvailableInSpecificTimeSlot(TeacherEntity teacher, String dayOfWeek, TimeSlotEntity timeSlot) {
         try {
             List<TeacherAvailabilityEntity> availabilities = teacherAvailabilityRepository

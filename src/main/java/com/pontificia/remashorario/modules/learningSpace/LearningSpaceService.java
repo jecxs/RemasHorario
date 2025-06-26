@@ -8,6 +8,7 @@ import com.pontificia.remashorario.modules.course.CourseService;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceRequestDTO;
 import com.pontificia.remashorario.modules.learningSpace.dto.LearningSpaceResponseDTO;
 import com.pontificia.remashorario.modules.learningSpace.mapper.LearningSpaceMapper;
+import com.pontificia.remashorario.modules.teachingHour.TeachingHourEntity;
 import com.pontificia.remashorario.modules.teachingType.TeachingTypeEntity;
 import com.pontificia.remashorario.modules.TimeSlot.TimeSlotService;
 import com.pontificia.remashorario.utils.abstractBase.BaseService;
@@ -15,7 +16,9 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -79,16 +82,162 @@ public class LearningSpaceService extends BaseService<LearningSpaceEntity> {
     }
 
 
+
+
+    // Sobrecarga del método existente para mantener compatibilidad
+    public List<LearningSpaceResponseDTO> getEligibleSpacesForSpecificHours(
+            UUID courseUuid, String dayOfWeek, List<String> teachingHourUuids) {
+        return getEligibleSpacesForSpecificHours(courseUuid, dayOfWeek, teachingHourUuids, null);
+    }
+
+    // ✅ MÉTODO PRINCIPAL MEJORADO
+    public List<LearningSpaceResponseDTO> getEligibleSpacesForSpecificHours(
+            UUID courseUuid, String dayOfWeek, List<String> teachingHourUuids, String sessionType) {
+
+        System.out.println("=== GET ELIGIBLE SPACES FOR SPECIFIC HOURS (IMPROVED) ===");
+        System.out.println("Course UUID: " + courseUuid);
+        System.out.println("Day: " + dayOfWeek);
+        System.out.println("Teaching Hour UUIDs: " + teachingHourUuids);
+        System.out.println("Session Type: " + sessionType);
+
+        List<LearningSpaceEntity> allSpaces;
+
+        // ✅ Si se especifica un sessionType, filtrar por ese tipo
+        if (sessionType != null && !sessionType.trim().isEmpty()) {
+            try {
+                TeachingTypeEntity.ETeachingType requiredType =
+                        TeachingTypeEntity.ETeachingType.valueOf(sessionType.toUpperCase());
+
+                System.out.println("Filtering by session type: " + requiredType);
+                allSpaces = learningSpaceRepository.findByTypeUUID_Name(requiredType);
+
+            } catch (IllegalArgumentException e) {
+                System.out.println("Invalid session type: " + sessionType + ", using all spaces");
+                allSpaces = learningSpaceRepository.findAll();
+            }
+        } else {
+            // ✅ Si no se especifica sessionType, devolver todos los espacios
+            System.out.println("No session type specified, returning all spaces");
+            allSpaces = learningSpaceRepository.findAll();
+        }
+
+        System.out.println("Spaces to check: " + allSpaces.size());
+
+        // Filtrar por disponibilidad en horas específicas
+        List<LearningSpaceEntity> availableSpaces = allSpaces.stream()
+                .filter(space -> {
+                    boolean available = isSpaceAvailableForSpecificHours(
+                            space.getUuid(), dayOfWeek, teachingHourUuids);
+
+                    System.out.println("Space " + space.getName() +
+                            " (" + space.getTypeUUID().getName() + "): " +
+                            (available ? "AVAILABLE" : "OCCUPIED"));
+
+                    return available;
+                })
+                .collect(Collectors.toList());
+
+        System.out.println("Final available spaces: " + availableSpaces.size());
+
+        // ✅ Mostrar desglose por tipo solo si no se filtró previamente
+        if (sessionType == null || sessionType.trim().isEmpty()) {
+            long theorySpaces = availableSpaces.stream()
+                    .filter(space -> space.getTypeUUID().getName() == TeachingTypeEntity.ETeachingType.THEORY)
+                    .count();
+            long practiceSpaces = availableSpaces.stream()
+                    .filter(space -> space.getTypeUUID().getName() == TeachingTypeEntity.ETeachingType.PRACTICE)
+                    .count();
+
+            System.out.println("  - THEORY spaces available: " + theorySpaces);
+            System.out.println("  - PRACTICE spaces available: " + practiceSpaces);
+        }
+
+        return learningSpaceMapper.toResponseDTOList(availableSpaces);
+    }
+    // ✅ Método auxiliar para verificar disponibilidad de horas específicas
+    public boolean isSpaceAvailableForSpecificHours(UUID spaceUuid, String dayOfWeek, List<String> teachingHourUuids) {
+        List<ClassSessionEntity> conflicts = classSessionRepository
+                .findByLearningSpaceAndDayOfWeekAndSpecificHours(
+                        spaceUuid,
+                        dayOfWeek.toUpperCase(),
+                        teachingHourUuids);
+        if (!conflicts.isEmpty()) {
+            conflicts.forEach(conflict -> {
+            });
+        }
+        boolean isAvailable = conflicts.isEmpty();
+        return isAvailable;
+    }
+
+
     private boolean isSpaceAvailableInTimeSlot(LearningSpaceEntity space, String dayOfWeek, TimeSlotEntity timeSlot) {
-        // Verificar si el aula está ocupada en ese horario
+        System.out.println("=== DEBUG SPACE AVAILABILITY (DETAILED) ===");
+        System.out.println("Checking space: " + space.getName());
+        System.out.println("Day: " + dayOfWeek);
+        System.out.println("TimeSlot: " + timeSlot.getName() + " (" + timeSlot.getStartTime() + " - " + timeSlot.getEndTime() + ")");
+
+        // Usar el método original que ya tienes
         List<ClassSessionEntity> occupiedSessions = classSessionRepository
                 .findByLearningSpaceAndDayOfWeekAndTimeSlotOverlap(
-                        space.getUuid(),  // ✅ Pasar UUID en lugar de entidad
-                        dayOfWeek.toUpperCase(),  // ✅ String directo
-                        timeSlot.getStartTime().toString(),  // ✅ Convertir LocalTime a String
+                        space.getUuid(),
+                        dayOfWeek.toUpperCase(),
+                        timeSlot.getStartTime().toString(),
                         timeSlot.getEndTime().toString());
 
-        return occupiedSessions.isEmpty();
+        System.out.println("Occupied sessions found: " + occupiedSessions.size());
+
+        if (occupiedSessions.isEmpty()) {
+        } else {
+            occupiedSessions.forEach((session) -> {
+                System.out.println("  📚 Session Details:");
+                System.out.println("    - Course: " + session.getCourse().getName());
+                System.out.println("    - Teacher: " + session.getTeacher().getFullName());
+                System.out.println("    - Group: " + session.getStudentGroup().getName());
+                System.out.println("    - Day: " + session.getDayOfWeek());
+
+                System.out.println("    - Teaching Hours in this session:");
+                session.getTeachingHours().forEach(hour -> {
+                    System.out.println("      ⏰ Hour " + hour.getOrderInTimeSlot() +
+                            ": " + hour.getStartTime() + " - " + hour.getEndTime() +
+                            " (Duration: " + hour.getDurationMinutes() + " min)");
+
+                    // Verificar si esta hora específica se solapa con el turno solicitado
+                    boolean startOverlaps = hour.getStartTime().isBefore(timeSlot.getEndTime()) &&
+                            hour.getStartTime().isAfter(timeSlot.getStartTime().minusMinutes(1));
+                    boolean endOverlaps = hour.getEndTime().isAfter(timeSlot.getStartTime()) &&
+                            hour.getEndTime().isBefore(timeSlot.getEndTime().plusMinutes(1));
+                    boolean contains = hour.getStartTime().compareTo(timeSlot.getStartTime()) >= 0 &&
+                            hour.getEndTime().compareTo(timeSlot.getEndTime()) <= 0;
+                    boolean surrounds = hour.getStartTime().isBefore(timeSlot.getStartTime()) &&
+                            hour.getEndTime().isAfter(timeSlot.getEndTime());
+
+                    boolean anyOverlap = startOverlaps || endOverlaps || contains || surrounds;
+
+                    System.out.println("        ▶️ Overlaps with requested timeslot: " + anyOverlap);
+                    if (anyOverlap) {
+                        System.out.println("        🔍 Overlap analysis:");
+                        System.out.println("          - Start overlaps: " + startOverlaps);
+                        System.out.println("          - End overlaps: " + endOverlaps);
+                        System.out.println("          - Contains: " + contains);
+                        System.out.println("          - Surrounds: " + surrounds);
+                    }
+                });
+
+                // Obtener información del turno de la sesión existente
+                if (!session.getTeachingHours().isEmpty()) {
+                    var firstHour = session.getTeachingHours().iterator().next();
+                    var sessionTimeSlot = firstHour.getTimeSlot();
+                    System.out.println("    - Session's TimeSlot: " + sessionTimeSlot.getName() +
+                            " (" + sessionTimeSlot.getStartTime() + " - " + sessionTimeSlot.getEndTime() + ")");
+
+                    boolean sameTimeSlot = sessionTimeSlot.getUuid().equals(timeSlot.getUuid());
+                    System.out.println("    - Same TimeSlot as requested: " + sameTimeSlot);
+                }
+            });
+        }
+
+        boolean isAvailable = occupiedSessions.isEmpty();
+        return isAvailable;
     }
 
     /**

@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/protected/teachers")
@@ -25,14 +27,25 @@ public class TeacherController {
     private final TeacherService teacherService;
     private final TeacherAvailabilityService availabilityService;
 
+    // En TeacherController.java
     @GetMapping("/eligible-detailed/{courseUuid}")
     public ResponseEntity<ApiResponse<List<TeacherEligibilityResponseDTO>>> getEligibleTeachersDetailed(
             @PathVariable UUID courseUuid,
             @RequestParam(required = false) String dayOfWeek,
-            @RequestParam(required = false) UUID timeSlotUuid) {
+            @RequestParam(required = false) UUID timeSlotUuid,
+            @RequestParam(required = false) String teachingHourUuids) { // ✅ NUEVO PARÁMETRO
+
+        // Convertir string de UUIDs a lista
+        List<UUID> hourUuidsList = null;
+        if (teachingHourUuids != null && !teachingHourUuids.trim().isEmpty()) {
+            hourUuidsList = Arrays.stream(teachingHourUuids.split(","))
+                    .map(String::trim)
+                    .map(UUID::fromString)
+                    .collect(Collectors.toList());
+        }
 
         List<TeacherEligibilityResponseDTO> eligibleTeachers = teacherService
-                .getEligibleTeachersWithAvailability(courseUuid, dayOfWeek, timeSlotUuid);
+                .getEligibleTeachersWithAvailability(courseUuid, dayOfWeek, timeSlotUuid, hourUuidsList); // ✅ PASAR HORAS
 
         return ResponseEntity.ok(
                 ApiResponse.success(eligibleTeachers, "Docentes elegibles con detalle recuperados con éxito")

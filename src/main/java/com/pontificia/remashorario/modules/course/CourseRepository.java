@@ -28,4 +28,7 @@ public interface CourseRepository extends BaseRepository<CourseEntity> {
 
     @Query("SELECT c FROM CourseEntity c WHERE c.teachingKnowledgeArea.uuid = :knowledgeAreaUuid")
     List<CourseEntity> findByKnowledgeAreaUuid(@Param("knowledgeAreaUuid") UUID knowledgeAreaUuid);
+
+    @Query("SELECT c FROM CourseEntity c WHERE c.cycle.uuid = :cycleUuid AND c.cycle.career.uuid = :careerUuid")
+    List<CourseEntity> findByCycleUuidAndCareerUuid(@Param("cycleUuid") UUID cycleUuid, @Param("careerUuid") UUID careerUuid);
 }

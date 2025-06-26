@@ -161,6 +161,16 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
             StudentGroupEntity group = studentGroupService.findOrThrow(dto.getStudentGroupUuid());
             Set<TeachingHourEntity> hours = getAndValidateTeachingHours(dto.getTeachingHourUuids());
 
+            // ✅ OBTENER EL TIPO DE SESIÓN ACTUAL (no del curso)
+            TeachingTypeEntity sessionType = teachingTypeService.findTeachingTypeOrThrow(dto.getSessionTypeUuid());
+
+            System.out.println("=== VALIDATION DEBUG ===");
+            System.out.println("Session Type UUID: " + dto.getSessionTypeUuid());
+            System.out.println("Session Type: " + sessionType.getName());
+            System.out.println("Learning Space Type: " + space.getTypeUUID().getName());
+            System.out.println("Course supported types: " + course.getTeachingTypes().stream()
+                    .map(tt -> tt.getName().name()).collect(Collectors.toList()));
+
             // Validar compatibilidad docente-curso
             if (!teacher.getKnowledgeAreas().contains(course.getTeachingKnowledgeArea())) {
                 warnings.add("El docente no tiene el área de conocimiento específica del curso");
@@ -181,18 +191,37 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
                 suggestions.add("Considerar un aula con mayor capacidad");
             }
 
-            // Validar tipo de aula vs tipo de curso
-            boolean isPracticeClass = course.getWeeklyPracticeHours() > 0;
-            if (isPracticeClass && !"PRACTICE".equals(space.getTypeUUID().getName().name())) {
-                warnings.add("Curso práctico asignado a aula teórica");
-                suggestions.add("Recomendado: Usar un laboratorio para mejor experiencia de aprendizaje");
-                if (severity.equals("LOW")) severity = "MEDIUM";
+            // ✅ CORRECCIÓN PRINCIPAL: Validar tipo de aula vs tipo de SESIÓN (no curso)
+            if (!sessionType.getName().equals(space.getTypeUUID().getName())) {
+                // Solo generar warning/error si hay incompatibilidad real
+                String sessionTypeName = sessionType.getName().name();
+                String spaceTypeName = space.getTypeUUID().getName().name();
+
+                System.out.println("Session type: " + sessionTypeName + ", Space type: " + spaceTypeName);
+
+                if (sessionTypeName.equals("PRACTICE") && spaceTypeName.equals("THEORY")) {
+                    warnings.add("Sesión práctica asignada a aula teórica");
+                    suggestions.add("Recomendado: Usar un laboratorio para mejor experiencia de aprendizaje");
+                    if (severity.equals("LOW")) severity = "MEDIUM";
+                } else if (sessionTypeName.equals("THEORY") && spaceTypeName.equals("PRACTICE")) {
+                    // Esto es menos crítico - una clase teórica en laboratorio está bien
+                    suggestions.add("Clase teórica en laboratorio - está bien, pero un aula tradicional podría ser más apropiada");
+                }
             }
 
-            // ✅ CORRECCIÓN PRINCIPAL: Verificar conflictos excluyendo la sesión actual
+            // ✅ VERIFICAR QUE EL CURSO SOPORTE EL TIPO DE SESIÓN SELECCIONADO
+            boolean courseSupportsSessionType = course.getTeachingTypes().stream()
+                    .anyMatch(type -> type.getName().equals(sessionType.getName()));
+
+            if (!courseSupportsSessionType) {
+                errors.add("El curso no soporta el tipo de sesión seleccionado");
+                severity = "CRITICAL";
+            }
+
+            // Verificar conflictos excluyendo la sesión actual
             List<ClassSessionEntity> conflicts = findConflictsForAssignment(
                     teacher.getUuid(), space.getUuid(), group.getUuid(),
-                    dto.getDayOfWeek(), hours, excludeSessionUuid); // ✅ Agregar excludeSessionUuid
+                    dto.getDayOfWeek(), hours, excludeSessionUuid);
 
             if (!conflicts.isEmpty()) {
                 errors.add("Existe conflicto de horario");
@@ -222,6 +251,7 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         } catch (Exception e) {
             errors.add("Error en la validación: " + e.getMessage());
             severity = "CRITICAL";
+            e.printStackTrace();
         }
 
         return ValidationResultDTO.builder()

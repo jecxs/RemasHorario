@@ -59,6 +59,19 @@ public interface ClassSessionRepository extends BaseRepository<ClassSessionEntit
             @Param("endTime") String endTime);
 
 
+    @Query(value = """
+    SELECT DISTINCT cs.* FROM class_session cs 
+    INNER JOIN class_session_teaching_hour csth ON cs.uuid = csth.class_session_id
+    WHERE cs.learning_space_id = :spaceId 
+    AND UPPER(cs.day_of_week) = UPPER(:dayOfWeek)
+    AND csth.teaching_hour_id IN :teachingHourUuids
+    """, nativeQuery = true)
+    List<ClassSessionEntity> findByLearningSpaceAndDayOfWeekAndSpecificHours(
+            @Param("spaceId") UUID spaceId,
+            @Param("dayOfWeek") String dayOfWeek,
+            @Param("teachingHourUuids") List<String> teachingHourUuids);
+
+
     List<ClassSessionEntity> findByDayOfWeekAndTeachingHoursContaining(DayOfWeek dayOfWeek, TeachingHourEntity teachingHour);
 
 

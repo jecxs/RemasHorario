@@ -25,5 +25,6 @@ public class ClassSessionValidationDTO {
     @NotNull
     private List<UUID> teachingHourUuids;
 
-    // constructors, getters, setters
+    @NotNull
+    private UUID sessionTypeUuid;
 }

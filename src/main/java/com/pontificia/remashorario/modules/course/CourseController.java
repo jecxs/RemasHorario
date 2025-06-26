@@ -28,6 +28,17 @@ public class CourseController {
         );
     }
 
+    @GetMapping("/cycle/{cycleUuid}/career/{careerUuid}")
+    public ResponseEntity<ApiResponse<List<CourseResponseDTO>>> getCoursesByCycleAndCareer(
+            @PathVariable UUID cycleUuid,
+            @PathVariable UUID careerUuid) {
+
+        List<CourseResponseDTO> courses = courseService.getCoursesByCycleAndCareer(cycleUuid, careerUuid);
+        return ResponseEntity.ok(
+                ApiResponse.success(courses, "Cursos recuperados con éxito")
+        );
+    }
+
     @GetMapping("/{uuid}")
     public ResponseEntity<ApiResponse<CourseResponseDTO>> getCourseById(@PathVariable UUID uuid) {
         CourseResponseDTO course = courseService.getCourseById(uuid);

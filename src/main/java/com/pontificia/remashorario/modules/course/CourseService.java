@@ -69,6 +69,11 @@ public class CourseService extends BaseService<CourseEntity> {
         return courseRepository.findByCycleUuid(cycleUuid);
     }
 
+    public List<CourseResponseDTO> getCoursesByCycleAndCareer(UUID cycleUuid, UUID careerUuid) {
+        List<CourseEntity> courses = courseRepository.findByCycleUuidAndCareerUuid(cycleUuid, careerUuid);
+        return courseMapper.toResponseDTOList(courses);
+    }
+
     @Transactional
     public CourseResponseDTO createCourse(CourseRequestDTO courseDTO) {
         // Verificar si ya existe un curso con el mismo nombre en el ciclo
