@@ -5,6 +5,8 @@ import com.pontificia.remashorario.modules.KnowledgeArea.KnowledgeAreaService;
 import com.pontificia.remashorario.modules.TimeSlot.TimeSlotEntity;
 import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentEntity;
 import com.pontificia.remashorario.modules.academicDepartment.AcademicDepartmentService;
+import com.pontificia.remashorario.modules.classSession.ClassSessionEntity;
+import com.pontificia.remashorario.modules.classSession.ClassSessionRepository;
 import com.pontificia.remashorario.modules.course.CourseEntity;
 import com.pontificia.remashorario.modules.teacher.dto.*;
 import com.pontificia.remashorario.modules.teacher.mapper.TeacherMapper;
@@ -42,6 +44,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
     private final TeacherAvailabilityRepository teacherAvailabilityRepository;
     private final TeacherAvailabilityMapper teacherAvailabilityMapper;
     private final TeachingHourRepository teachingHourRepository;
+    private final ClassSessionRepository classSessionRepository;
 
     @Autowired
     public TeacherService(TeacherRepository teacherRepository,
@@ -51,7 +54,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
                           UserService userService,
                           CourseService courseService,
                           TimeSlotService timeSlotService,
-                          TeacherAvailabilityRepository teacherAvailabilityRepository, TeacherAvailabilityMapper teacherAvailabilityMapper, TeachingHourRepository teachingHourRepository) {
+                          TeacherAvailabilityRepository teacherAvailabilityRepository, TeacherAvailabilityMapper teacherAvailabilityMapper, TeachingHourRepository teachingHourRepository, ClassSessionRepository classSessionRepository) {
         super(teacherRepository);
         this.teacherRepository = teacherRepository;
         this.teacherMapper = teacherMapper;
@@ -63,6 +66,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
         this.teacherAvailabilityRepository = teacherAvailabilityRepository;
         this.teacherAvailabilityMapper = teacherAvailabilityMapper;
         this.teachingHourRepository = teachingHourRepository;
+        this.classSessionRepository = classSessionRepository;
     }
 
     public List<TeacherResponseDTO> getAllTeachers() {
@@ -74,6 +78,108 @@ public class TeacherService extends BaseService<TeacherEntity> {
         TeacherEntity teacher = findTeacherOrThrow(uuid);
         return teacherMapper.toResponseDTO(teacher);
     }
+
+
+    // ✅ NUEVO: Verificar conflictos de clases asignadas
+    private TeacherClassConflictInfo checkTeacherClassConflicts(
+            TeacherEntity teacher, String dayOfWeek, List<UUID> specificHourUuids) {
+
+        try {
+            // Buscar sesiones existentes del docente en el día específico
+            List<ClassSessionEntity> teacherSessions = classSessionRepository
+                    .findByTeacherUuidAndDayOfWeek(teacher.getUuid(), DayOfWeek.valueOf(dayOfWeek.toUpperCase()));
+
+            List<TeacherClassConflictDTO> conflicts = new ArrayList<>();
+            Set<UUID> conflictingHourUuids = new HashSet<>();
+
+            for (ClassSessionEntity session : teacherSessions) {
+                // Verificar si alguna hora pedagógica de la sesión existente
+                // coincide con las horas que queremos asignar
+                List<UUID> sessionHourUuids = session.getTeachingHours().stream()
+                        .map(TeachingHourEntity::getUuid)
+                        .collect(Collectors.toList());
+
+                // Encontrar intersección
+                List<UUID> intersection = sessionHourUuids.stream()
+                        .filter(specificHourUuids::contains)
+                        .collect(Collectors.toList());
+
+                if (!intersection.isEmpty()) {
+                    // Hay conflicto - construir información detallada
+                    TeachingHourEntity firstHour = session.getTeachingHours().stream()
+                            .min(Comparator.comparing(TeachingHourEntity::getOrderInTimeSlot))
+                            .orElse(null);
+                    TeachingHourEntity lastHour = session.getTeachingHours().stream()
+                            .max(Comparator.comparing(TeachingHourEntity::getOrderInTimeSlot))
+                            .orElse(null);
+
+                    TeacherClassConflictDTO conflict = TeacherClassConflictDTO.builder()
+                            .sessionUuid(session.getUuid().toString())
+                            .courseName(session.getCourse().getName())
+                            .courseCode(session.getCourse().getCode())
+                            .studentGroupName(session.getStudentGroup().getName())
+                            .studentGroupUuid(session.getStudentGroup().getUuid().toString()) // ✅ AGREGAR ESTA LÍNEA
+                            .dayOfWeek(session.getDayOfWeek().name())
+                            .startTime(firstHour != null ? firstHour.getStartTime().toString() : "")
+                            .endTime(lastHour != null ? lastHour.getEndTime().toString() : "")
+                            .learningSpaceName(session.getLearningSpace().getName())
+                            .sessionType(session.getSessionType().getName().name())
+                            .conflictingHourUuids(intersection.stream().map(UUID::toString).collect(Collectors.toList()))
+                            .build();
+
+                    conflicts.add(conflict);
+                    conflictingHourUuids.addAll(intersection);
+
+                    // ✅ AGREGAR LOG PARA DEBUGGING
+                    System.out.println("=== CONFLICT DETECTED ===");
+                    System.out.println("Teacher: " + teacher.getFullName());
+                    System.out.println("Conflicting session: " + session.getCourse().getName());
+                    System.out.println("Student group: " + session.getStudentGroup().getName());
+                    System.out.println("Student group UUID: " + session.getStudentGroup().getUuid());
+                    System.out.println("Conflict DTO student group UUID: " + conflict.getStudentGroupUuid());
+                }
+            }
+
+            // Determinar tipo de conflicto
+            String conflictType = "NONE";
+            if (!conflicts.isEmpty()) {
+                if (conflictingHourUuids.size() == specificHourUuids.size()) {
+                    conflictType = "FULL_CONFLICT"; // Todas las horas en conflicto
+                } else {
+                    conflictType = "PARTIAL_CONFLICT"; // Solo algunas horas en conflicto
+                }
+            }
+
+            return TeacherClassConflictInfo.builder()
+                    .hasConflict(!conflicts.isEmpty())
+                    .conflicts(conflicts)
+                    .conflictType(conflictType)
+                    .conflictingHourUuids(conflictingHourUuids.stream().map(UUID::toString).collect(Collectors.toList()))
+                    .build();
+
+        } catch (Exception e) {
+            System.out.println("Error checking teacher conflicts: " + e.getMessage());
+            e.printStackTrace(); // ✅ Agregar stack trace para debugging
+            return TeacherClassConflictInfo.builder()
+                    .hasConflict(false)
+                    .conflicts(new ArrayList<>())
+                    .conflictType("ERROR")
+                    .build();
+        }
+    }
+    // ✅ NUEVO: Generar resumen de conflictos
+    private String generateConflictSummary(List<TeacherClassConflictDTO> conflicts) {
+        if (conflicts.isEmpty()) return "";
+
+        if (conflicts.size() == 1) {
+            TeacherClassConflictDTO conflict = conflicts.get(0);
+            return String.format("Clase de %s con grupo %s",
+                    conflict.getCourseName(), conflict.getStudentGroupName());
+        }
+
+        return String.format("%d clases en conflicto", conflicts.size());
+    }
+
 
     public TeacherWithAvailabilitiesDTO getTeacherWithAvailabilities(UUID uuid) {
         TeacherEntity teacher = teacherRepository.findByIdWithAvailabilities(uuid)
@@ -112,6 +218,7 @@ public class TeacherService extends BaseService<TeacherEntity> {
 
 
     // ✅ MÉTODO ACTUALIZADO
+    // ✅ ACTUALIZAR: buildTeacherEligibilityResponse para incluir conflictos
     private TeacherEligibilityResponseDTO buildTeacherEligibilityResponse(
             TeacherEntity teacher, String dayOfWeek, UUID timeSlotUuid, List<UUID> specificHourUuids) {
 
@@ -122,6 +229,12 @@ public class TeacherService extends BaseService<TeacherEntity> {
         List<TeacherAvailabilityEntity> dayAvailabilities = new ArrayList<>();
         String recommendedSlots = "";
 
+        // ✅ NUEVO: Verificar conflictos de clases
+        TeacherClassConflictInfo conflictInfo = null;
+        if (dayOfWeek != null && specificHourUuids != null && !specificHourUuids.isEmpty()) {
+            conflictInfo = checkTeacherClassConflicts(teacher, dayOfWeek, specificHourUuids);
+        }
+
         if (dayOfWeek != null) {
             try {
                 dayAvailabilities = teacherAvailabilityRepository
@@ -131,18 +244,30 @@ public class TeacherService extends BaseService<TeacherEntity> {
                     status = "NO_SCHEDULE_CONFIGURED";
                     recommendedSlots = "Sin horario configurado";
                 } else {
-                    // ✅ LÓGICA MEJORADA: Usar horas específicas si están disponibles
+                    // ✅ CAMBIO: Considerar tanto disponibilidad como conflictos
                     if (specificHourUuids != null && !specificHourUuids.isEmpty()) {
                         isAvailable = isTeacherAvailableForSpecificHours(teacher, dayOfWeek, specificHourUuids);
-                        status = isAvailable ? "AVAILABLE" : "TIME_CONFLICT";
-                        System.out.println("Checked specific hours for " + teacher.getFullName() + ": " + isAvailable);
+
+                        // ✅ NUEVA LÓGICA: Determinar estado final considerando conflictos
+                        if (conflictInfo != null && conflictInfo.isHasConflict()) {
+                            if ("FULL_CONFLICT".equals(conflictInfo.getConflictType())) {
+                                status = "SCHEDULE_CONFLICT";
+                                isAvailable = false;
+                            } else if ("PARTIAL_CONFLICT".equals(conflictInfo.getConflictType())) {
+                                status = "PARTIAL_CONFLICT";
+                                isAvailable = false; // No permitir selección si hay conflicto parcial
+                            }
+                        } else if (isAvailable) {
+                            status = "AVAILABLE";
+                        } else {
+                            status = "TIME_CONFLICT";
+                        }
                     } else if (timeSlotUuid != null) {
-                        // Fallback al método anterior
+                        // Lógica anterior para timeSlot
                         TimeSlotEntity timeSlot = timeSlotService.findOrThrow(timeSlotUuid);
                         isAvailable = isTeacherAvailableForAnyHourInTimeSlot(teacher, dayOfWeek, timeSlot);
                         status = isAvailable ? "AVAILABLE" : "TIME_CONFLICT";
                     } else {
-                        // Sin restricciones específicas
                         isAvailable = dayAvailabilities.stream()
                                 .anyMatch(av -> av.getIsAvailable() != null && av.getIsAvailable());
                         status = isAvailable ? "AVAILABLE" : "NOT_AVAILABLE";
@@ -156,7 +281,8 @@ public class TeacherService extends BaseService<TeacherEntity> {
             }
         }
 
-        return TeacherEligibilityResponseDTO.builder()
+        // ✅ CONSTRUIR RESPUESTA COMPLETA con información de conflictos
+        TeacherEligibilityResponseDTO.TeacherEligibilityResponseDTOBuilder builder = TeacherEligibilityResponseDTO.builder()
                 .uuid(basicInfo.getUuid())
                 .fullName(basicInfo.getFullName())
                 .email(basicInfo.getEmail())
@@ -166,8 +292,21 @@ public class TeacherService extends BaseService<TeacherEntity> {
                 .isAvailableForTimeSlot(isAvailable)
                 .availabilityStatus(status)
                 .availabilitiesForDay(teacherAvailabilityMapper.toResponseDTOList(dayAvailabilities))
-                .recommendedTimeSlots(recommendedSlots)
-                .build();
+                .recommendedTimeSlots(recommendedSlots);
+
+        // ✅ AGREGAR información de conflictos si existe
+        if (conflictInfo != null) {
+            builder.hasScheduleConflict(conflictInfo.isHasConflict())
+                    .conflictingClasses(conflictInfo.getConflicts())
+                    .conflictType(conflictInfo.getConflictType());
+
+            if (conflictInfo.isHasConflict()) {
+                String conflictSummary = generateConflictSummary(conflictInfo.getConflicts());
+                builder.conflictSummary(conflictSummary);
+            }
+        }
+
+        return builder.build();
     }
 
     // ✅ NUEVO MÉTODO: Verificar disponibilidad para horas específicas por UUID

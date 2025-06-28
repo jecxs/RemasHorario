@@ -27,6 +27,11 @@ public class UserService extends BaseService<UserEntity> implements UserDetailsS
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         UserEntity user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+        // ✅ VERIFICAR: Que los roles se estén asignando correctamente
+        System.out.println("=== DEBUG USER ROLES ===");
+        System.out.println("User: " + user.getEmail());
+        System.out.println("Role: " + user.getRole());
+        System.out.println("Role name: " + user.getRole().name());
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPassword())

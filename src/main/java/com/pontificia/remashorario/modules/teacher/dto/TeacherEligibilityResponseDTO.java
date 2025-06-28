@@ -22,9 +22,14 @@ public class TeacherEligibilityResponseDTO {
     private List<KnowledgeAreaResponseDTO> knowledgeAreas;
     private Boolean hasUserAccount;
 
-    // ✅ Nuevos campos para disponibilidad
     private Boolean isAvailableForTimeSlot;
-    private String availabilityStatus; // "AVAILABLE", "NOT_AVAILABLE", "PARTIAL"
+    private String availabilityStatus; // "AVAILABLE", "NOT_AVAILABLE", "PARTIAL", etc.
     private List<TeacherAvailabilityResponseDTO> availabilitiesForDay;
-    private String recommendedTimeSlots; // Horarios sugeridos
+    private String recommendedTimeSlots;
+
+    // ✅ NUEVOS CAMPOS para conflictos
+    private Boolean hasScheduleConflict;
+    private List<TeacherClassConflictDTO> conflictingClasses;
+    private String conflictSummary;
+    private String conflictType;
 }
