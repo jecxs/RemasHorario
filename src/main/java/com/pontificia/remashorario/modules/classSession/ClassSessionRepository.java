@@ -75,6 +75,18 @@ public interface ClassSessionRepository extends BaseRepository<ClassSessionEntit
     List<ClassSessionEntity> findByDayOfWeekAndTeachingHoursContaining(DayOfWeek dayOfWeek, TeachingHourEntity teachingHour);
 
 
+    // ✅ NUEVOS MÉTODOS con filtro de periodo
+    @Query("SELECT cs FROM ClassSessionEntity cs WHERE cs.studentGroup.uuid = :studentGroupUuid AND cs.period.uuid = :periodUuid")
+    List<ClassSessionEntity> findByStudentGroupUuidAndPeriod(@Param("studentGroupUuid") UUID studentGroupUuid, @Param("periodUuid") UUID periodUuid);
+
+    @Query("SELECT cs FROM ClassSessionEntity cs WHERE cs.teacher.uuid = :teacherUuid AND cs.period.uuid = :periodUuid")
+    List<ClassSessionEntity> findByTeacherUuidAndPeriod(@Param("teacherUuid") UUID teacherUuid, @Param("periodUuid") UUID periodUuid);
+
+    @Query("SELECT cs FROM ClassSessionEntity cs WHERE cs.period.uuid = :periodUuid")
+    List<ClassSessionEntity> findByPeriod(@Param("periodUuid") UUID periodUuid);
+
+
+
 
     @Query("SELECT cs FROM ClassSessionEntity cs WHERE cs.studentGroup.uuid = :studentGroupUuid")
     List<ClassSessionEntity> findByStudentGroupUuid(@Param("studentGroupUuid") UUID studentGroupUuid);

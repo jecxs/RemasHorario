@@ -69,9 +69,16 @@ public class ClassSessionController {
 
     @GetMapping("/student-group/{groupUuid}")
     public ResponseEntity<ApiResponse<List<ClassSessionResponseDTO>>> getSessionsByStudentGroup(
-            @PathVariable UUID groupUuid) {
+            @PathVariable UUID groupUuid,
+            @RequestParam(required = false) UUID periodUuid) { // ✅ AGREGADO
 
-        List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByStudentGroup(groupUuid);
+        List<ClassSessionResponseDTO> sessions;
+        if (periodUuid != null) {
+            sessions = classSessionService.getSessionsByStudentGroupAndPeriod(groupUuid, periodUuid);
+        } else {
+            sessions = classSessionService.getSessionsByStudentGroup(groupUuid);
+        }
+
         return ResponseEntity.ok(
                 ApiResponse.success(sessions, "Sesiones del grupo recuperadas con éxito")
         );
@@ -80,13 +87,26 @@ public class ClassSessionController {
 
     @GetMapping("/teacher/{teacherUuid}")
     public ResponseEntity<ApiResponse<List<ClassSessionResponseDTO>>> getSessionsByTeacher(
-            @PathVariable UUID teacherUuid) {
+            @PathVariable UUID teacherUuid,
+            @RequestParam(required = false) UUID periodUuid) {
 
-        List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByTeacher(teacherUuid);
+        List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByTeacherAndPeriod(teacherUuid, periodUuid);
         return ResponseEntity.ok(
                 ApiResponse.success(sessions, "Sesiones del docente recuperadas con éxito")
         );
     }
+
+    // ✅ NUEVO: Obtener todas las sesiones de un periodo
+    @GetMapping("/period/{periodUuid}")
+    public ResponseEntity<ApiResponse<List<ClassSessionResponseDTO>>> getSessionsByPeriod(
+            @PathVariable UUID periodUuid) {
+        List<ClassSessionResponseDTO> sessions = classSessionService.getSessionsByPeriod(periodUuid);
+        return ResponseEntity.ok(
+                ApiResponse.success(sessions, "Sesiones del periodo recuperadas con éxito")
+        );
+    }
+
+
 
     @PostMapping
     public ResponseEntity<ApiResponse<ClassSessionResponseDTO>> createClassSession(

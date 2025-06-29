@@ -99,6 +99,8 @@ public class ClassSessionMapper {
         entity.setTeachingHours(teachingHours);
         entity.setNotes(dto.getNotes());
 
+        entity.setPeriod(studentGroup.getPeriod());
+
         return entity;
     }
 

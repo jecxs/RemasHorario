@@ -25,10 +25,31 @@ public class StudentGroupController {
      * @return Respuesta con lista de DTOs de grupos de estudiantes.
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<StudentGroupResponseDTO>>> getAllStudentGroups() {
-        List<StudentGroupResponseDTO> studentGroups = studentGroupService.getAllStudentGroups();
+    public ResponseEntity<ApiResponse<List<StudentGroupResponseDTO>>> getAllStudentGroups(
+            @RequestParam(required = false) UUID periodUuid) { // ✅ AGREGAR parámetro
+
+        System.out.println("🔍 DEBUG - Getting groups for period: " + periodUuid);
+
+        List<StudentGroupResponseDTO> studentGroups;
+        if (periodUuid != null) {
+            studentGroups = studentGroupService.getGroupsByPeriod(periodUuid); // ✅ NUEVO método
+        } else {
+            studentGroups = studentGroupService.getAllStudentGroups();
+        }
+
+        System.out.println("📊 Found " + studentGroups.size() + " groups");
+
         return ResponseEntity.ok(
                 ApiResponse.success(studentGroups, "Grupos de estudiantes recuperados con éxito")
+        );
+    }
+
+    @GetMapping("/period/{periodUuid}")
+    public ResponseEntity<ApiResponse<List<StudentGroupResponseDTO>>> getGroupsByPeriod(
+            @PathVariable UUID periodUuid) {
+        List<StudentGroupResponseDTO> studentGroups = studentGroupService.getGroupsByPeriod(periodUuid);
+        return ResponseEntity.ok(
+                ApiResponse.success(studentGroups, "Grupos del periodo recuperados con éxito")
         );
     }
 

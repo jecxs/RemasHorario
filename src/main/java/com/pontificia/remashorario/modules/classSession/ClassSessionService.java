@@ -336,6 +336,22 @@ public class ClassSessionService extends BaseService<ClassSessionEntity> {
         return "UNKNOWN";
     }
 
+    public List<ClassSessionResponseDTO> getSessionsByStudentGroupAndPeriod(UUID groupUuid, UUID periodUuid) {
+        List<ClassSessionEntity> sessions = classSessionRepository
+                .findByStudentGroupUuidAndPeriod(groupUuid, periodUuid);
+        return classSessionMapper.toResponseDTOList(sessions);
+    }
+
+    public List<ClassSessionResponseDTO> getSessionsByTeacherAndPeriod(UUID teacherUuid, UUID periodUuid) {
+        List<ClassSessionEntity> sessions = classSessionRepository.findByTeacherUuidAndPeriod(teacherUuid, periodUuid);
+        return classSessionMapper.toResponseDTOList(sessions);
+    }
+
+    public List<ClassSessionResponseDTO> getSessionsByPeriod(UUID periodUuid) {
+        List<ClassSessionEntity> sessions = classSessionRepository.findByPeriod(periodUuid);
+        return classSessionMapper.toResponseDTOList(sessions);
+    }
+
     private List<ClassSessionEntity> findConflictsForAssignment(
             UUID teacherUuid, UUID spaceUuid, UUID groupUuid, String dayOfWeek, Set<TeachingHourEntity> hours) {
 

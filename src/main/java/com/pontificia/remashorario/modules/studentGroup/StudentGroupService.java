@@ -37,6 +37,17 @@ public class StudentGroupService extends BaseService<StudentGroupEntity> {
         return studentGroupMapper.toResponseDTOList(studentGroups);
     }
 
+    public List<StudentGroupResponseDTO> getGroupsByPeriod(UUID periodUuid) {
+        System.out.println("🔍 StudentGroupService - Getting groups for period: " + periodUuid);
+
+        List<StudentGroupEntity> groups = studentGroupRepository.findByPeriodUuid(periodUuid);
+
+        System.out.println("📊 Found " + groups.size() + " groups for period");
+
+        return studentGroupMapper.toResponseDTOList(groups);
+    }
+
+
     /**
      * Crea un nuevo grupo de estudiantes con los datos proporcionados en el DTO.
      * Realiza una validación para asegurar que el nombre del grupo sea único dentro de su ciclo.
