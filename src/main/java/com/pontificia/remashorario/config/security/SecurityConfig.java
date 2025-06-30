@@ -38,11 +38,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/protected/me/**").hasAnyRole("TEACHER", "ASSISTANT", "COORDINATOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/protected/**").hasRole("COORDINATOR")
                         // Allow teachers to manage only their availability endpoints
                         // En lugar de "/api/protected/teachers/**/availabilities/**"
                         .requestMatchers("/api/protected/teachers/{teacherUuid}/availabilities/**").hasAnyRole("TEACHER", "ASSISTANT", "COORDINATOR")
+                        .requestMatchers("/api/protected/teachers/availabilities/**").hasAnyRole("TEACHER", "ASSISTANT", "COORDINATOR")
                         // Other protected endpoints are reserved for coordinators or assistants
                         .requestMatchers("/api/protected/**").hasAnyRole("COORDINATOR", "ASSISTANT")
                         .anyRequest().authenticated()
