@@ -1,6 +1,9 @@
 package com.pontificia.remashorario.modules.teacherAttendance;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.teacherAttendance.dto.*;
+import com.pontificia.remashorario.modules.teacherAttendance.mapper.TeacherAttendanceMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -23,15 +26,17 @@ import java.util.UUID;
 public class TeacherAttendanceController {
 
     private final TeacherAttendanceService attendanceService;
+    private final TeacherAttendanceMapper attendanceMapper;
 
     /**
      * Get all attendances
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TeacherAttendanceEntity>>> getAllAttendances() {
+    public ResponseEntity<ApiResponse<List<TeacherAttendanceResponseDTO>>> getAllAttendances() {
         List<TeacherAttendanceEntity> attendances = attendanceService.getAllAttendances();
+        List<TeacherAttendanceResponseDTO> responseDTOs = attendanceMapper.toResponseDTOList(attendances);
         return ResponseEntity.ok(
-                ApiResponse.success(attendances, "Asistencias recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asistencias recuperadas con éxito")
         );
     }
 
@@ -39,10 +44,11 @@ public class TeacherAttendanceController {
      * Get attendance by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> getAttendanceById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> getAttendanceById(@PathVariable UUID uuid) {
         TeacherAttendanceEntity attendance = attendanceService.getAttendanceById(uuid);
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Asistencia recuperada con éxito")
+                ApiResponse.success(responseDTO, "Asistencia recuperada con éxito")
         );
     }
 
@@ -50,10 +56,11 @@ public class TeacherAttendanceController {
      * Get attendance by ID with full details
      */
     @GetMapping("/{uuid}/details")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> getAttendanceByIdWithDetails(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> getAttendanceByIdWithDetails(@PathVariable UUID uuid) {
         TeacherAttendanceEntity attendance = attendanceService.getAttendanceByIdWithDetails(uuid);
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Asistencia con detalles recuperada con éxito")
+                ApiResponse.success(responseDTO, "Asistencia con detalles recuperada con éxito")
         );
     }
 
@@ -61,11 +68,12 @@ public class TeacherAttendanceController {
      * Get all attendances for a teacher
      */
     @GetMapping("/teacher/{teacherUuid}")
-    public ResponseEntity<ApiResponse<List<TeacherAttendanceEntity>>> getAttendancesByTeacher(
+    public ResponseEntity<ApiResponse<List<TeacherAttendanceResponseDTO>>> getAttendancesByTeacher(
             @PathVariable UUID teacherUuid) {
         List<TeacherAttendanceEntity> attendances = attendanceService.getAttendancesByTeacher(teacherUuid);
+        List<TeacherAttendanceResponseDTO> responseDTOs = attendanceMapper.toResponseDTOList(attendances);
         return ResponseEntity.ok(
-                ApiResponse.success(attendances, "Asistencias del docente recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asistencias del docente recuperadas con éxito")
         );
     }
 
@@ -73,12 +81,13 @@ public class TeacherAttendanceController {
      * Get attendances for a teacher on a specific date
      */
     @GetMapping("/teacher/{teacherUuid}/date/{date}")
-    public ResponseEntity<ApiResponse<List<TeacherAttendanceEntity>>> getAttendancesByTeacherAndDate(
+    public ResponseEntity<ApiResponse<List<TeacherAttendanceResponseDTO>>> getAttendancesByTeacherAndDate(
             @PathVariable UUID teacherUuid,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<TeacherAttendanceEntity> attendances = attendanceService.getAttendancesByTeacherAndDate(teacherUuid, date);
+        List<TeacherAttendanceResponseDTO> responseDTOs = attendanceMapper.toResponseDTOList(attendances);
         return ResponseEntity.ok(
-                ApiResponse.success(attendances, "Asistencias del docente en la fecha recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asistencias del docente en la fecha recuperadas con éxito")
         );
     }
 
@@ -86,14 +95,15 @@ public class TeacherAttendanceController {
      * Get attendances for a teacher in a date range
      */
     @GetMapping("/teacher/{teacherUuid}/range")
-    public ResponseEntity<ApiResponse<List<TeacherAttendanceEntity>>> getAttendancesByTeacherAndDateRange(
+    public ResponseEntity<ApiResponse<List<TeacherAttendanceResponseDTO>>> getAttendancesByTeacherAndDateRange(
             @PathVariable UUID teacherUuid,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<TeacherAttendanceEntity> attendances = attendanceService.getAttendancesByTeacherAndDateRange(
                 teacherUuid, startDate, endDate);
+        List<TeacherAttendanceResponseDTO> responseDTOs = attendanceMapper.toResponseDTOList(attendances);
         return ResponseEntity.ok(
-                ApiResponse.success(attendances, "Asistencias del docente en el rango recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asistencias del docente en el rango recuperadas con éxito")
         );
     }
 
@@ -101,12 +111,13 @@ public class TeacherAttendanceController {
      * Get attendances in a date range
      */
     @GetMapping("/range")
-    public ResponseEntity<ApiResponse<List<TeacherAttendanceEntity>>> getAttendancesByDateRange(
+    public ResponseEntity<ApiResponse<List<TeacherAttendanceResponseDTO>>> getAttendancesByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<TeacherAttendanceEntity> attendances = attendanceService.getAttendancesByDateRange(startDate, endDate);
+        List<TeacherAttendanceResponseDTO> responseDTOs = attendanceMapper.toResponseDTOList(attendances);
         return ResponseEntity.ok(
-                ApiResponse.success(attendances, "Asistencias en el rango recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asistencias en el rango recuperadas con éxito")
         );
     }
 
@@ -114,11 +125,12 @@ public class TeacherAttendanceController {
      * Get pending attendances for a teacher
      */
     @GetMapping("/teacher/{teacherUuid}/pending")
-    public ResponseEntity<ApiResponse<List<TeacherAttendanceEntity>>> getPendingAttendancesByTeacher(
+    public ResponseEntity<ApiResponse<List<TeacherAttendanceResponseDTO>>> getPendingAttendancesByTeacher(
             @PathVariable UUID teacherUuid) {
         List<TeacherAttendanceEntity> attendances = attendanceService.getPendingAttendancesByTeacher(teacherUuid);
+        List<TeacherAttendanceResponseDTO> responseDTOs = attendanceMapper.toResponseDTOList(attendances);
         return ResponseEntity.ok(
-                ApiResponse.success(attendances, "Asistencias pendientes del docente recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asistencias pendientes del docente recuperadas con éxito")
         );
     }
 
@@ -126,42 +138,48 @@ public class TeacherAttendanceController {
      * Teacher checks in (basic - without schedule details)
      */
     @PostMapping("/check-in")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> checkIn(
-            @RequestParam UUID teacherUuid,
-            @RequestParam UUID classSessionUuid,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        LocalDate attendanceDate = date != null ? date : LocalDate.now();
-        TeacherAttendanceEntity attendance = attendanceService.checkIn(teacherUuid, classSessionUuid, attendanceDate);
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> checkIn(
+            @Valid @RequestBody TeacherAttendanceCheckInRequestDTO requestDTO) {
+        LocalDate attendanceDate = requestDTO.getDate() != null ? requestDTO.getDate() : LocalDate.now();
+        TeacherAttendanceEntity attendance = attendanceService.checkIn(
+                requestDTO.getTeacherUuid(),
+                requestDTO.getClassSessionUuid(),
+                attendanceDate
+        );
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(attendance, "Entrada registrada con éxito"));
+                .body(ApiResponse.success(responseDTO, "Entrada registrada con éxito"));
     }
 
     /**
      * Teacher checks in with full schedule details (calculates penalties)
      */
     @PostMapping("/check-in-with-schedule")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> checkInWithSchedule(
-            @RequestParam UUID teacherUuid,
-            @RequestParam UUID classSessionUuid,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime scheduledStartTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime scheduledEndTime,
-            @RequestParam Integer scheduledDurationMinutes) {
-        LocalDate attendanceDate = date != null ? date : LocalDate.now();
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> checkInWithSchedule(
+            @Valid @RequestBody TeacherAttendanceCheckInWithScheduleRequestDTO requestDTO) {
+        LocalDate attendanceDate = requestDTO.getDate() != null ? requestDTO.getDate() : LocalDate.now();
         TeacherAttendanceEntity attendance = attendanceService.checkInWithSchedule(
-                teacherUuid, classSessionUuid, attendanceDate, scheduledStartTime, scheduledEndTime, scheduledDurationMinutes);
+                requestDTO.getTeacherUuid(),
+                requestDTO.getClassSessionUuid(),
+                attendanceDate,
+                requestDTO.getScheduledStartTime(),
+                requestDTO.getScheduledEndTime(),
+                requestDTO.getScheduledDurationMinutes()
+        );
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(attendance, "Entrada registrada con éxito"));
+                .body(ApiResponse.success(responseDTO, "Entrada registrada con éxito"));
     }
 
     /**
      * Teacher checks out
      */
     @PatchMapping("/{uuid}/check-out")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> checkOut(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> checkOut(@PathVariable UUID uuid) {
         TeacherAttendanceEntity attendance = attendanceService.checkOut(uuid);
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Salida registrada con éxito")
+                ApiResponse.success(responseDTO, "Salida registrada con éxito")
         );
     }
 
@@ -169,30 +187,33 @@ public class TeacherAttendanceController {
      * Admin approves attendance
      */
     @PatchMapping("/{uuid}/approve")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> approveAttendance(
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> approveAttendance(
             @PathVariable UUID uuid,
             @RequestParam(required = false) String adminNote) {
         TeacherAttendanceEntity attendance = attendanceService.approveAttendance(uuid, adminNote);
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Asistencia aprobada con éxito")
+                ApiResponse.success(responseDTO, "Asistencia aprobada con éxito")
         );
     }
 
     /**
      * Admin overrides attendance (manual correction)
-     * TODO: Replace parameters with AttendanceOverrideRequestDTO when DTOs are created
      */
     @PatchMapping("/{uuid}/override")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> overrideAttendance(
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> overrideAttendance(
             @PathVariable UUID uuid,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime checkinAt,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime checkoutAt,
-            @RequestParam(defaultValue = "false") boolean resetPenalties,
-            @RequestParam(required = false) String adminNote) {
+            @Valid @RequestBody AttendanceOverrideRequestDTO requestDTO) {
         TeacherAttendanceEntity attendance = attendanceService.overrideAttendance(
-                uuid, checkinAt, checkoutAt, resetPenalties, adminNote);
+                uuid,
+                requestDTO.getCheckinAt(),
+                requestDTO.getCheckoutAt(),
+                requestDTO.isResetPenalties(),
+                requestDTO.getAdminNote()
+        );
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Asistencia modificada por administrador con éxito")
+                ApiResponse.success(responseDTO, "Asistencia modificada por administrador con éxito")
         );
     }
 
@@ -200,12 +221,13 @@ public class TeacherAttendanceController {
      * Mark attendance as holiday (auto-fills attendance with full scheduled time)
      */
     @PatchMapping("/{uuid}/mark-holiday")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> markAsHoliday(
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> markAsHoliday(
             @PathVariable UUID uuid,
             @RequestParam(required = false) String adminNote) {
         TeacherAttendanceEntity attendance = attendanceService.markAsHoliday(uuid, adminNote);
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Asistencia marcada como feriado con éxito")
+                ApiResponse.success(responseDTO, "Asistencia marcada como feriado con éxito")
         );
     }
 
@@ -213,12 +235,13 @@ public class TeacherAttendanceController {
      * Reject attendance
      */
     @PatchMapping("/{uuid}/reject")
-    public ResponseEntity<ApiResponse<TeacherAttendanceEntity>> rejectAttendance(
+    public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> rejectAttendance(
             @PathVariable UUID uuid,
             @RequestParam(required = false) String adminNote) {
         TeacherAttendanceEntity attendance = attendanceService.rejectAttendance(uuid, adminNote);
+        TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
         return ResponseEntity.ok(
-                ApiResponse.success(attendance, "Asistencia rechazada con éxito")
+                ApiResponse.success(responseDTO, "Asistencia rechazada con éxito")
         );
     }
 
@@ -254,14 +277,15 @@ public class TeacherAttendanceController {
      * Get attendance statistics for a teacher in a date range
      */
     @GetMapping("/teacher/{teacherUuid}/statistics")
-    public ResponseEntity<ApiResponse<TeacherAttendanceService.AttendanceStats>> getAttendanceStats(
+    public ResponseEntity<ApiResponse<AttendanceStatisticsDTO>> getAttendanceStats(
             @PathVariable UUID teacherUuid,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         TeacherAttendanceService.AttendanceStats stats = attendanceService.getAttendanceStats(
                 teacherUuid, startDate, endDate);
+        AttendanceStatisticsDTO statsDTO = attendanceMapper.toStatisticsDTO(stats);
         return ResponseEntity.ok(
-                ApiResponse.success(stats, "Estadísticas de asistencia calculadas con éxito")
+                ApiResponse.success(statsDTO, "Estadísticas de asistencia calculadas con éxito")
         );
     }
 }

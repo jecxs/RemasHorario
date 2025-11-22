@@ -1,6 +1,10 @@
 package com.pontificia.remashorario.modules.teacherRate;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.teacherRate.dto.TeacherRateRequestDTO;
+import com.pontificia.remashorario.modules.teacherRate.dto.TeacherRateResponseDTO;
+import com.pontificia.remashorario.modules.teacherRate.mapper.TeacherRateMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -11,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for managing teacher-specific hourly rates
@@ -22,15 +27,17 @@ import java.util.UUID;
 public class TeacherRateController {
 
     private final TeacherRateService teacherRateService;
+    private final TeacherRateMapper teacherRateMapper;
 
     /**
      * Get all teacher rates
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<TeacherRateEntity>>> getAllRates() {
+    public ResponseEntity<ApiResponse<List<TeacherRateResponseDTO>>> getAllRates() {
         List<TeacherRateEntity> rates = teacherRateService.getAllRates();
+        List<TeacherRateResponseDTO> responseDTOs = teacherRateMapper.toResponseDTOList(rates);
         return ResponseEntity.ok(
-                ApiResponse.success(rates, "Tarifas de docentes recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Tarifas de docentes recuperadas con éxito")
         );
     }
 
@@ -38,10 +45,11 @@ public class TeacherRateController {
      * Get teacher rate by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> getRateById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> getRateById(@PathVariable UUID uuid) {
         TeacherRateEntity rate = teacherRateService.getRateById(uuid);
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.ok(
-                ApiResponse.success(rate, "Tarifa de docente recuperada con éxito")
+                ApiResponse.success(responseDTO, "Tarifa de docente recuperada con éxito")
         );
     }
 
@@ -49,10 +57,11 @@ public class TeacherRateController {
      * Get teacher rate by ID with full details
      */
     @GetMapping("/{uuid}/details")
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> getRateByIdWithDetails(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> getRateByIdWithDetails(@PathVariable UUID uuid) {
         TeacherRateEntity rate = teacherRateService.getRateByIdWithDetails(uuid);
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.ok(
-                ApiResponse.success(rate, "Tarifa de docente con detalles recuperada con éxito")
+                ApiResponse.success(responseDTO, "Tarifa de docente con detalles recuperada con éxito")
         );
     }
 
@@ -60,11 +69,12 @@ public class TeacherRateController {
      * Get all rates for a specific teacher
      */
     @GetMapping("/teacher/{teacherUuid}")
-    public ResponseEntity<ApiResponse<List<TeacherRateEntity>>> getRatesByTeacher(
+    public ResponseEntity<ApiResponse<List<TeacherRateResponseDTO>>> getRatesByTeacher(
             @PathVariable UUID teacherUuid) {
         List<TeacherRateEntity> rates = teacherRateService.getRatesByTeacher(teacherUuid);
+        List<TeacherRateResponseDTO> responseDTOs = teacherRateMapper.toResponseDTOList(rates);
         return ResponseEntity.ok(
-                ApiResponse.success(rates, "Tarifas del docente recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Tarifas del docente recuperadas con éxito")
         );
     }
 
@@ -72,11 +82,12 @@ public class TeacherRateController {
      * Get all rates for a specific activity type
      */
     @GetMapping("/activity-type/{activityTypeUuid}")
-    public ResponseEntity<ApiResponse<List<TeacherRateEntity>>> getRatesByActivityType(
+    public ResponseEntity<ApiResponse<List<TeacherRateResponseDTO>>> getRatesByActivityType(
             @PathVariable UUID activityTypeUuid) {
         List<TeacherRateEntity> rates = teacherRateService.getRatesByActivityType(activityTypeUuid);
+        List<TeacherRateResponseDTO> responseDTOs = teacherRateMapper.toResponseDTOList(rates);
         return ResponseEntity.ok(
-                ApiResponse.success(rates, "Tarifas del tipo de actividad recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Tarifas del tipo de actividad recuperadas con éxito")
         );
     }
 
@@ -84,15 +95,16 @@ public class TeacherRateController {
      * Get active rate for a teacher and activity type on a specific date
      */
     @GetMapping("/teacher/{teacherUuid}/activity-type/{activityTypeUuid}/active")
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> getActiveRateByTeacherAndActivityType(
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> getActiveRateByTeacherAndActivityType(
             @PathVariable UUID teacherUuid,
             @PathVariable UUID activityTypeUuid,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate effectiveDate = date != null ? date : LocalDate.now();
         TeacherRateEntity rate = teacherRateService.getActiveRateByTeacherAndActivityType(
                 teacherUuid, activityTypeUuid, effectiveDate);
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.ok(
-                ApiResponse.success(rate, "Tarifa activa del docente recuperada con éxito")
+                ApiResponse.success(responseDTO, "Tarifa activa del docente recuperada con éxito")
         );
     }
 
@@ -100,13 +112,14 @@ public class TeacherRateController {
      * Get all active rates for a teacher on a specific date
      */
     @GetMapping("/teacher/{teacherUuid}/active")
-    public ResponseEntity<ApiResponse<List<TeacherRateEntity>>> getActiveRatesByTeacher(
+    public ResponseEntity<ApiResponse<List<TeacherRateResponseDTO>>> getActiveRatesByTeacher(
             @PathVariable UUID teacherUuid,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate effectiveDate = date != null ? date : LocalDate.now();
         List<TeacherRateEntity> rates = teacherRateService.getActiveRatesByTeacher(teacherUuid, effectiveDate);
+        List<TeacherRateResponseDTO> responseDTOs = teacherRateMapper.toResponseDTOList(rates);
         return ResponseEntity.ok(
-                ApiResponse.success(rates, "Tarifas activas del docente recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Tarifas activas del docente recuperadas con éxito")
         );
     }
 
@@ -142,34 +155,38 @@ public class TeacherRateController {
 
     /**
      * Create new teacher rate
-     * TODO: Replace parameters with TeacherRateRequestDTO when DTOs are created
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> createRate(
-            @RequestParam UUID teacherUuid,
-            @RequestParam UUID activityTypeUuid,
-            @RequestParam BigDecimal ratePerHour,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveTo) {
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> createRate(
+            @Valid @RequestBody TeacherRateRequestDTO requestDTO) {
         TeacherRateEntity rate = teacherRateService.createRate(
-                teacherUuid, activityTypeUuid, ratePerHour, effectiveFrom, effectiveTo);
+                requestDTO.getTeacherUuid(),
+                requestDTO.getActivityTypeUuid(),
+                requestDTO.getRatePerHour(),
+                requestDTO.getEffectiveFrom(),
+                requestDTO.getEffectiveTo()
+        );
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(rate, "Tarifa de docente creada con éxito"));
+                .body(ApiResponse.success(responseDTO, "Tarifa de docente creada con éxito"));
     }
 
     /**
      * Update teacher rate
-     * TODO: Replace parameters with TeacherRateRequestDTO when DTOs are created
      */
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> updateRate(
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> updateRate(
             @PathVariable UUID uuid,
-            @RequestParam BigDecimal ratePerHour,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveTo) {
-        TeacherRateEntity rate = teacherRateService.updateRate(uuid, ratePerHour, effectiveFrom, effectiveTo);
+            @Valid @RequestBody TeacherRateRequestDTO requestDTO) {
+        TeacherRateEntity rate = teacherRateService.updateRate(
+                uuid,
+                requestDTO.getRatePerHour(),
+                requestDTO.getEffectiveFrom(),
+                requestDTO.getEffectiveTo()
+        );
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.ok(
-                ApiResponse.success(rate, "Tarifa de docente actualizada con éxito")
+                ApiResponse.success(responseDTO, "Tarifa de docente actualizada con éxito")
         );
     }
 
@@ -177,10 +194,11 @@ public class TeacherRateController {
      * Close a rate by setting its effectiveTo date to today
      */
     @PatchMapping("/{uuid}/close")
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> closeRate(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> closeRate(@PathVariable UUID uuid) {
         TeacherRateEntity rate = teacherRateService.closeRate(uuid);
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.ok(
-                ApiResponse.success(rate, "Tarifa de docente cerrada con éxito")
+                ApiResponse.success(responseDTO, "Tarifa de docente cerrada con éxito")
         );
     }
 
@@ -188,15 +206,16 @@ public class TeacherRateController {
      * Create a new rate version (closes previous and creates new)
      */
     @PostMapping("/teacher/{teacherUuid}/activity-type/{activityTypeUuid}/new-version")
-    public ResponseEntity<ApiResponse<TeacherRateEntity>> createNewRateVersion(
+    public ResponseEntity<ApiResponse<TeacherRateResponseDTO>> createNewRateVersion(
             @PathVariable UUID teacherUuid,
             @PathVariable UUID activityTypeUuid,
             @RequestParam BigDecimal newRatePerHour,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveFrom) {
         TeacherRateEntity rate = teacherRateService.createNewRateVersion(
                 teacherUuid, activityTypeUuid, newRatePerHour, effectiveFrom);
+        TeacherRateResponseDTO responseDTO = teacherRateMapper.toResponseDTO(rate);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(rate, "Nueva versión de tarifa de docente creada con éxito"));
+                .body(ApiResponse.success(responseDTO, "Nueva versión de tarifa de docente creada con éxito"));
     }
 
     /**
@@ -212,15 +231,24 @@ public class TeacherRateController {
 
     /**
      * Bulk create rates for a teacher across multiple activity types
-     * TODO: Replace List<TeacherRateEntity> with BulkTeacherRateRequestDTO when DTOs are created
      */
     @PostMapping("/teacher/{teacherUuid}/bulk")
-    public ResponseEntity<ApiResponse<List<TeacherRateEntity>>> createBulkRatesForTeacher(
+    public ResponseEntity<ApiResponse<List<TeacherRateResponseDTO>>> createBulkRatesForTeacher(
             @PathVariable UUID teacherUuid,
-            @RequestBody List<TeacherRateEntity> rates,
+            @Valid @RequestBody List<TeacherRateRequestDTO> rateRequests,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate effectiveFrom) {
-        List<TeacherRateEntity> created = teacherRateService.createBulkRatesForTeacher(teacherUuid, rates, effectiveFrom);
+        List<TeacherRateEntity> ratesToCreate = rateRequests.stream()
+                .map(dto -> {
+                    TeacherRateEntity entity = new TeacherRateEntity();
+                    entity.setRatePerHour(dto.getRatePerHour());
+                    // ActivityTypeUuid from DTO will be used by service
+                    return entity;
+                })
+                .collect(Collectors.toList());
+
+        List<TeacherRateEntity> created = teacherRateService.createBulkRatesForTeacher(teacherUuid, ratesToCreate, effectiveFrom);
+        List<TeacherRateResponseDTO> responseDTOs = teacherRateMapper.toResponseDTOList(created);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(created, "Tarifas de docente creadas en masa con éxito"));
+                .body(ApiResponse.success(responseDTOs, "Tarifas de docente creadas en masa con éxito"));
     }
 }

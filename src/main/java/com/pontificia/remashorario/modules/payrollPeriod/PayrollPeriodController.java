@@ -1,6 +1,10 @@
 package com.pontificia.remashorario.modules.payrollPeriod;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.payrollPeriod.dto.PayrollPeriodRequestDTO;
+import com.pontificia.remashorario.modules.payrollPeriod.dto.PayrollPeriodResponseDTO;
+import com.pontificia.remashorario.modules.payrollPeriod.mapper.PayrollPeriodMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -21,15 +25,17 @@ import java.util.UUID;
 public class PayrollPeriodController {
 
     private final PayrollPeriodService payrollPeriodService;
+    private final PayrollPeriodMapper payrollPeriodMapper;
 
     /**
      * Get all payroll periods (ordered by start date descending)
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> getAllPeriods() {
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> getAllPeriods() {
         List<PayrollPeriodEntity> periods = payrollPeriodService.getAllPeriods();
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.ok(
-                ApiResponse.success(periods, "Períodos de nómina recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Períodos de nómina recuperados con éxito")
         );
     }
 
@@ -37,10 +43,11 @@ public class PayrollPeriodController {
      * Get payroll period by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> getPeriodById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> getPeriodById(@PathVariable UUID uuid) {
         PayrollPeriodEntity period = payrollPeriodService.getPeriodById(uuid);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina recuperado con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina recuperado con éxito")
         );
     }
 
@@ -48,11 +55,12 @@ public class PayrollPeriodController {
      * Get periods by status
      */
     @GetMapping("/status/{status}")
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> getPeriodsByStatus(
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> getPeriodsByStatus(
             @PathVariable PayrollPeriodEntity.PayrollStatus status) {
         List<PayrollPeriodEntity> periods = payrollPeriodService.getPeriodsByStatus(status);
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.ok(
-                ApiResponse.success(periods, "Períodos de nómina por estado recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Períodos de nómina por estado recuperados con éxito")
         );
     }
 
@@ -60,11 +68,12 @@ public class PayrollPeriodController {
      * Get period by specific date
      */
     @GetMapping("/date/{date}")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> getPeriodByDate(
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> getPeriodByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         PayrollPeriodEntity period = payrollPeriodService.getPeriodByDate(date);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina para la fecha recuperado con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina para la fecha recuperado con éxito")
         );
     }
 
@@ -72,10 +81,11 @@ public class PayrollPeriodController {
      * Get pending periods (DRAFT or CALCULATED)
      */
     @GetMapping("/pending")
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> getPendingPeriods() {
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> getPendingPeriods() {
         List<PayrollPeriodEntity> periods = payrollPeriodService.getPendingPeriods();
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.ok(
-                ApiResponse.success(periods, "Períodos de nómina pendientes recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Períodos de nómina pendientes recuperados con éxito")
         );
     }
 
@@ -83,12 +93,13 @@ public class PayrollPeriodController {
      * Get past periods
      */
     @GetMapping("/past")
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> getPastPeriods(
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> getPastPeriods(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate referenceDate = date != null ? date : LocalDate.now();
         List<PayrollPeriodEntity> periods = payrollPeriodService.getPastPeriods(referenceDate);
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.ok(
-                ApiResponse.success(periods, "Períodos de nómina pasados recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Períodos de nómina pasados recuperados con éxito")
         );
     }
 
@@ -96,42 +107,48 @@ public class PayrollPeriodController {
      * Get future periods
      */
     @GetMapping("/future")
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> getFuturePeriods(
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> getFuturePeriods(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate referenceDate = date != null ? date : LocalDate.now();
         List<PayrollPeriodEntity> periods = payrollPeriodService.getFuturePeriods(referenceDate);
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.ok(
-                ApiResponse.success(periods, "Períodos de nómina futuros recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Períodos de nómina futuros recuperados con éxito")
         );
     }
 
     /**
      * Create new payroll period
-     * TODO: Replace parameters with PayrollPeriodRequestDTO when DTOs are created
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> createPeriod(
-            @RequestParam String name,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        PayrollPeriodEntity period = payrollPeriodService.createPeriod(name, startDate, endDate);
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> createPeriod(
+            @Valid @RequestBody PayrollPeriodRequestDTO requestDTO) {
+        PayrollPeriodEntity period = payrollPeriodService.createPeriod(
+                requestDTO.getName(),
+                requestDTO.getStartDate(),
+                requestDTO.getEndDate()
+        );
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(period, "Período de nómina creado con éxito"));
+                .body(ApiResponse.success(responseDTO, "Período de nómina creado con éxito"));
     }
 
     /**
      * Update payroll period (only if status is DRAFT)
-     * TODO: Replace parameters with PayrollPeriodRequestDTO when DTOs are created
      */
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> updatePeriod(
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> updatePeriod(
             @PathVariable UUID uuid,
-            @RequestParam String name,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        PayrollPeriodEntity period = payrollPeriodService.updatePeriod(uuid, name, startDate, endDate);
+            @Valid @RequestBody PayrollPeriodRequestDTO requestDTO) {
+        PayrollPeriodEntity period = payrollPeriodService.updatePeriod(
+                uuid,
+                requestDTO.getName(),
+                requestDTO.getStartDate(),
+                requestDTO.getEndDate()
+        );
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina actualizado con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina actualizado con éxito")
         );
     }
 
@@ -150,10 +167,11 @@ public class PayrollPeriodController {
      * Mark period as CALCULATED
      */
     @PatchMapping("/{uuid}/mark-calculated")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> markAsCalculated(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> markAsCalculated(@PathVariable UUID uuid) {
         PayrollPeriodEntity period = payrollPeriodService.markAsCalculated(uuid);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina marcado como calculado con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina marcado como calculado con éxito")
         );
     }
 
@@ -161,10 +179,11 @@ public class PayrollPeriodController {
      * Mark period as APPROVED
      */
     @PatchMapping("/{uuid}/mark-approved")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> markAsApproved(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> markAsApproved(@PathVariable UUID uuid) {
         PayrollPeriodEntity period = payrollPeriodService.markAsApproved(uuid);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina aprobado con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina aprobado con éxito")
         );
     }
 
@@ -172,10 +191,11 @@ public class PayrollPeriodController {
      * Mark period as PAID
      */
     @PatchMapping("/{uuid}/mark-paid")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> markAsPaid(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> markAsPaid(@PathVariable UUID uuid) {
         PayrollPeriodEntity period = payrollPeriodService.markAsPaid(uuid);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina marcado como pagado con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina marcado como pagado con éxito")
         );
     }
 
@@ -183,10 +203,11 @@ public class PayrollPeriodController {
      * Revert period back to DRAFT status
      */
     @PatchMapping("/{uuid}/revert-to-draft")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> revertToDraft(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> revertToDraft(@PathVariable UUID uuid) {
         PayrollPeriodEntity period = payrollPeriodService.revertToDraft(uuid);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.ok(
-                ApiResponse.success(period, "Período de nómina revertido a borrador con éxito")
+                ApiResponse.success(responseDTO, "Período de nómina revertido a borrador con éxito")
         );
     }
 
@@ -194,36 +215,39 @@ public class PayrollPeriodController {
      * Create weekly periods for a month
      */
     @PostMapping("/generate/weekly")
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> createWeeklyPeriodsForMonth(
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> createWeeklyPeriodsForMonth(
             @RequestParam int year,
             @RequestParam int month) {
         List<PayrollPeriodEntity> periods = payrollPeriodService.createWeeklyPeriodsForMonth(year, month);
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(periods, "Períodos semanales creados con éxito"));
+                .body(ApiResponse.success(responseDTOs, "Períodos semanales creados con éxito"));
     }
 
     /**
      * Create biweekly periods for a month
      */
     @PostMapping("/generate/biweekly")
-    public ResponseEntity<ApiResponse<List<PayrollPeriodEntity>>> createBiweeklyPeriodsForMonth(
+    public ResponseEntity<ApiResponse<List<PayrollPeriodResponseDTO>>> createBiweeklyPeriodsForMonth(
             @RequestParam int year,
             @RequestParam int month) {
         List<PayrollPeriodEntity> periods = payrollPeriodService.createBiweeklyPeriodsForMonth(year, month);
+        List<PayrollPeriodResponseDTO> responseDTOs = payrollPeriodMapper.toResponseDTOList(periods);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(periods, "Períodos quincenales creados con éxito"));
+                .body(ApiResponse.success(responseDTOs, "Períodos quincenales creados con éxito"));
     }
 
     /**
      * Create monthly period
      */
     @PostMapping("/generate/monthly")
-    public ResponseEntity<ApiResponse<PayrollPeriodEntity>> createMonthlyPeriod(
+    public ResponseEntity<ApiResponse<PayrollPeriodResponseDTO>> createMonthlyPeriod(
             @RequestParam int year,
             @RequestParam int month) {
         PayrollPeriodEntity period = payrollPeriodService.createMonthlyPeriod(year, month);
+        PayrollPeriodResponseDTO responseDTO = payrollPeriodMapper.toResponseDTO(period);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(period, "Período mensual creado con éxito"));
+                .body(ApiResponse.success(responseDTO, "Período mensual creado con éxito"));
     }
 
     /**

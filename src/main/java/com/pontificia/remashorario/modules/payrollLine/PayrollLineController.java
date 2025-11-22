@@ -1,6 +1,9 @@
 package com.pontificia.remashorario.modules.payrollLine;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.payrollLine.dto.PayrollLineResponseDTO;
+import com.pontificia.remashorario.modules.payrollLine.dto.PayrollPeriodSummaryDTO;
+import com.pontificia.remashorario.modules.payrollLine.mapper.PayrollLineMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,15 +22,17 @@ import java.util.UUID;
 public class PayrollLineController {
 
     private final PayrollLineService payrollLineService;
+    private final PayrollLineMapper payrollLineMapper;
 
     /**
      * Get all payroll lines
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PayrollLineEntity>>> getAllPayrollLines() {
+    public ResponseEntity<ApiResponse<List<PayrollLineResponseDTO>>> getAllPayrollLines() {
         List<PayrollLineEntity> payrollLines = payrollLineService.getAllPayrollLines();
+        List<PayrollLineResponseDTO> responseDTOs = payrollLineMapper.toResponseDTOList(payrollLines);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLines, "Líneas de nómina recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Líneas de nómina recuperadas con éxito")
         );
     }
 
@@ -35,10 +40,11 @@ public class PayrollLineController {
      * Get payroll line by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<PayrollLineEntity>> getPayrollLineById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollLineResponseDTO>> getPayrollLineById(@PathVariable UUID uuid) {
         PayrollLineEntity payrollLine = payrollLineService.getPayrollLineById(uuid);
+        PayrollLineResponseDTO responseDTO = payrollLineMapper.toResponseDTO(payrollLine);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLine, "Línea de nómina recuperada con éxito")
+                ApiResponse.success(responseDTO, "Línea de nómina recuperada con éxito")
         );
     }
 
@@ -46,10 +52,11 @@ public class PayrollLineController {
      * Get payroll line by ID with full details
      */
     @GetMapping("/{uuid}/details")
-    public ResponseEntity<ApiResponse<PayrollLineEntity>> getPayrollLineByIdWithDetails(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<PayrollLineResponseDTO>> getPayrollLineByIdWithDetails(@PathVariable UUID uuid) {
         PayrollLineEntity payrollLine = payrollLineService.getPayrollLineByIdWithDetails(uuid);
+        PayrollLineResponseDTO responseDTO = payrollLineMapper.toResponseDTO(payrollLine);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLine, "Línea de nómina con detalles recuperada con éxito")
+                ApiResponse.success(responseDTO, "Línea de nómina con detalles recuperada con éxito")
         );
     }
 
@@ -57,11 +64,12 @@ public class PayrollLineController {
      * Get all payroll lines for a specific period
      */
     @GetMapping("/period/{payrollPeriodUuid}")
-    public ResponseEntity<ApiResponse<List<PayrollLineEntity>>> getPayrollLinesByPeriod(
+    public ResponseEntity<ApiResponse<List<PayrollLineResponseDTO>>> getPayrollLinesByPeriod(
             @PathVariable UUID payrollPeriodUuid) {
         List<PayrollLineEntity> payrollLines = payrollLineService.getPayrollLinesByPeriod(payrollPeriodUuid);
+        List<PayrollLineResponseDTO> responseDTOs = payrollLineMapper.toResponseDTOList(payrollLines);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLines, "Líneas de nómina del período recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Líneas de nómina del período recuperadas con éxito")
         );
     }
 
@@ -69,11 +77,12 @@ public class PayrollLineController {
      * Get all payroll lines for a specific teacher (ordered by period descending)
      */
     @GetMapping("/teacher/{teacherUuid}")
-    public ResponseEntity<ApiResponse<List<PayrollLineEntity>>> getPayrollLinesByTeacher(
+    public ResponseEntity<ApiResponse<List<PayrollLineResponseDTO>>> getPayrollLinesByTeacher(
             @PathVariable UUID teacherUuid) {
         List<PayrollLineEntity> payrollLines = payrollLineService.getPayrollLinesByTeacher(teacherUuid);
+        List<PayrollLineResponseDTO> responseDTOs = payrollLineMapper.toResponseDTOList(payrollLines);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLines, "Líneas de nómina del docente recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Líneas de nómina del docente recuperadas con éxito")
         );
     }
 
@@ -81,13 +90,14 @@ public class PayrollLineController {
      * Get payroll line for a specific teacher in a specific period
      */
     @GetMapping("/period/{payrollPeriodUuid}/teacher/{teacherUuid}")
-    public ResponseEntity<ApiResponse<PayrollLineEntity>> getPayrollLineByPeriodAndTeacher(
+    public ResponseEntity<ApiResponse<PayrollLineResponseDTO>> getPayrollLineByPeriodAndTeacher(
             @PathVariable UUID payrollPeriodUuid,
             @PathVariable UUID teacherUuid) {
         PayrollLineEntity payrollLine = payrollLineService.getPayrollLineByPeriodAndTeacher(
                 payrollPeriodUuid, teacherUuid);
+        PayrollLineResponseDTO responseDTO = payrollLineMapper.toResponseDTO(payrollLine);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLine, "Línea de nómina del docente en el período recuperada con éxito")
+                ApiResponse.success(responseDTO, "Línea de nómina del docente en el período recuperada con éxito")
         );
     }
 
@@ -96,12 +106,13 @@ public class PayrollLineController {
      * This is the main calculation endpoint
      */
     @PostMapping("/calculate/period/{payrollPeriodUuid}/teacher/{teacherUuid}")
-    public ResponseEntity<ApiResponse<PayrollLineEntity>> calculatePayrollForTeacher(
+    public ResponseEntity<ApiResponse<PayrollLineResponseDTO>> calculatePayrollForTeacher(
             @PathVariable UUID payrollPeriodUuid,
             @PathVariable UUID teacherUuid) {
         PayrollLineEntity payrollLine = payrollLineService.calculatePayrollForTeacher(payrollPeriodUuid, teacherUuid);
+        PayrollLineResponseDTO responseDTO = payrollLineMapper.toResponseDTO(payrollLine);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLine, "Nómina del docente calculada con éxito")
+                ApiResponse.success(responseDTO, "Nómina del docente calculada con éxito")
         );
     }
 
@@ -110,11 +121,12 @@ public class PayrollLineController {
      * This endpoint triggers calculation for all teachers who have attendance or extra assignments
      */
     @PostMapping("/calculate/period/{payrollPeriodUuid}")
-    public ResponseEntity<ApiResponse<List<PayrollLineEntity>>> calculatePayrollForAllTeachers(
+    public ResponseEntity<ApiResponse<List<PayrollLineResponseDTO>>> calculatePayrollForAllTeachers(
             @PathVariable UUID payrollPeriodUuid) {
         List<PayrollLineEntity> payrollLines = payrollLineService.calculatePayrollForAllTeachers(payrollPeriodUuid);
+        List<PayrollLineResponseDTO> responseDTOs = payrollLineMapper.toResponseDTOList(payrollLines);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLines, "Nómina de todos los docentes calculada con éxito")
+                ApiResponse.success(responseDTOs, "Nómina de todos los docentes calculada con éxito")
         );
     }
 
@@ -123,11 +135,12 @@ public class PayrollLineController {
      * Deletes existing calculations and recalculates from scratch
      */
     @PostMapping("/recalculate/period/{payrollPeriodUuid}")
-    public ResponseEntity<ApiResponse<List<PayrollLineEntity>>> recalculatePayrollForPeriod(
+    public ResponseEntity<ApiResponse<List<PayrollLineResponseDTO>>> recalculatePayrollForPeriod(
             @PathVariable UUID payrollPeriodUuid) {
         List<PayrollLineEntity> payrollLines = payrollLineService.recalculatePayrollForPeriod(payrollPeriodUuid);
+        List<PayrollLineResponseDTO> responseDTOs = payrollLineMapper.toResponseDTOList(payrollLines);
         return ResponseEntity.ok(
-                ApiResponse.success(payrollLines, "Nómina del período recalculada con éxito")
+                ApiResponse.success(responseDTOs, "Nómina del período recalculada con éxito")
         );
     }
 
@@ -182,39 +195,19 @@ public class PayrollLineController {
      * Get period summary (aggregated statistics)
      */
     @GetMapping("/period/{payrollPeriodUuid}/summary")
-    public ResponseEntity<ApiResponse<PayrollPeriodSummary>> getPeriodSummary(
+    public ResponseEntity<ApiResponse<PayrollPeriodSummaryDTO>> getPeriodSummary(
             @PathVariable UUID payrollPeriodUuid) {
         BigDecimal totalNet = payrollLineService.getTotalNetAmountByPeriod(payrollPeriodUuid);
         BigDecimal totalPenalties = payrollLineService.getTotalPenaltiesByPeriod(payrollPeriodUuid);
+        BigDecimal totalGross = payrollLineService.getTotalGrossAmountByPeriod(payrollPeriodUuid);
         Long teacherCount = payrollLineService.getTeacherCountByPeriod(payrollPeriodUuid);
 
-        PayrollPeriodSummary summary = new PayrollPeriodSummary(
-                totalNet,
-                totalPenalties,
-                totalNet.add(totalPenalties), // gross amount
-                teacherCount
+        PayrollPeriodSummaryDTO summary = payrollLineMapper.toSummaryDTO(
+                totalNet, totalPenalties, totalGross, teacherCount
         );
 
         return ResponseEntity.ok(
                 ApiResponse.success(summary, "Resumen del período calculado con éxito")
         );
-    }
-
-    /**
-     * Inner class for period summary response
-     */
-    public static class PayrollPeriodSummary {
-        public final BigDecimal totalNetAmount;
-        public final BigDecimal totalPenalties;
-        public final BigDecimal totalGrossAmount;
-        public final Long teacherCount;
-
-        public PayrollPeriodSummary(BigDecimal totalNetAmount, BigDecimal totalPenalties,
-                                  BigDecimal totalGrossAmount, Long teacherCount) {
-            this.totalNetAmount = totalNetAmount;
-            this.totalPenalties = totalPenalties;
-            this.totalGrossAmount = totalGrossAmount;
-            this.teacherCount = teacherCount;
-        }
     }
 }
