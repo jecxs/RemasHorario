@@ -1,6 +1,10 @@
 package com.pontificia.remashorario.modules.extraAssignment;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.extraAssignment.dto.ExtraAssignmentRequestDTO;
+import com.pontificia.remashorario.modules.extraAssignment.dto.ExtraAssignmentResponseDTO;
+import com.pontificia.remashorario.modules.extraAssignment.mapper.ExtraAssignmentMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -12,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for managing extra assignments (workshops, substitute exams, etc.)
@@ -23,15 +28,17 @@ import java.util.UUID;
 public class ExtraAssignmentController {
 
     private final ExtraAssignmentService extraAssignmentService;
+    private final ExtraAssignmentMapper extraAssignmentMapper;
 
     /**
      * Get all extra assignments
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> getAllAssignments() {
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> getAllAssignments() {
         List<ExtraAssignmentEntity> assignments = extraAssignmentService.getAllAssignments();
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(assignments);
         return ResponseEntity.ok(
-                ApiResponse.success(assignments, "Asignaciones extra recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asignaciones extra recuperadas con éxito")
         );
     }
 
@@ -39,10 +46,11 @@ public class ExtraAssignmentController {
      * Get extra assignment by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<ExtraAssignmentEntity>> getAssignmentById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<ExtraAssignmentResponseDTO>> getAssignmentById(@PathVariable UUID uuid) {
         ExtraAssignmentEntity assignment = extraAssignmentService.getAssignmentById(uuid);
+        ExtraAssignmentResponseDTO responseDTO = extraAssignmentMapper.toResponseDTO(assignment);
         return ResponseEntity.ok(
-                ApiResponse.success(assignment, "Asignación extra recuperada con éxito")
+                ApiResponse.success(responseDTO, "Asignación extra recuperada con éxito")
         );
     }
 
@@ -50,10 +58,11 @@ public class ExtraAssignmentController {
      * Get extra assignment by ID with full details
      */
     @GetMapping("/{uuid}/details")
-    public ResponseEntity<ApiResponse<ExtraAssignmentEntity>> getAssignmentByIdWithDetails(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<ExtraAssignmentResponseDTO>> getAssignmentByIdWithDetails(@PathVariable UUID uuid) {
         ExtraAssignmentEntity assignment = extraAssignmentService.getAssignmentByIdWithDetails(uuid);
+        ExtraAssignmentResponseDTO responseDTO = extraAssignmentMapper.toResponseDTO(assignment);
         return ResponseEntity.ok(
-                ApiResponse.success(assignment, "Asignación extra con detalles recuperada con éxito")
+                ApiResponse.success(responseDTO, "Asignación extra con detalles recuperada con éxito")
         );
     }
 
@@ -61,11 +70,12 @@ public class ExtraAssignmentController {
      * Get all assignments for a specific teacher
      */
     @GetMapping("/teacher/{teacherUuid}")
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> getAssignmentsByTeacher(
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> getAssignmentsByTeacher(
             @PathVariable UUID teacherUuid) {
         List<ExtraAssignmentEntity> assignments = extraAssignmentService.getAssignmentsByTeacher(teacherUuid);
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(assignments);
         return ResponseEntity.ok(
-                ApiResponse.success(assignments, "Asignaciones extra del docente recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asignaciones extra del docente recuperadas con éxito")
         );
     }
 
@@ -73,12 +83,13 @@ public class ExtraAssignmentController {
      * Get assignments for a teacher on a specific date
      */
     @GetMapping("/teacher/{teacherUuid}/date/{date}")
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> getAssignmentsByTeacherAndDate(
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> getAssignmentsByTeacherAndDate(
             @PathVariable UUID teacherUuid,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<ExtraAssignmentEntity> assignments = extraAssignmentService.getAssignmentsByTeacherAndDate(teacherUuid, date);
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(assignments);
         return ResponseEntity.ok(
-                ApiResponse.success(assignments, "Asignaciones extra del docente en la fecha recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asignaciones extra del docente en la fecha recuperadas con éxito")
         );
     }
 
@@ -86,14 +97,15 @@ public class ExtraAssignmentController {
      * Get assignments for a teacher in a date range
      */
     @GetMapping("/teacher/{teacherUuid}/range")
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> getAssignmentsByTeacherAndDateRange(
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> getAssignmentsByTeacherAndDateRange(
             @PathVariable UUID teacherUuid,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<ExtraAssignmentEntity> assignments = extraAssignmentService.getAssignmentsByTeacherAndDateRange(
                 teacherUuid, startDate, endDate);
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(assignments);
         return ResponseEntity.ok(
-                ApiResponse.success(assignments, "Asignaciones extra del docente en el rango recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asignaciones extra del docente en el rango recuperadas con éxito")
         );
     }
 
@@ -101,12 +113,13 @@ public class ExtraAssignmentController {
      * Get assignments in a date range
      */
     @GetMapping("/range")
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> getAssignmentsByDateRange(
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> getAssignmentsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<ExtraAssignmentEntity> assignments = extraAssignmentService.getAssignmentsByDateRange(startDate, endDate);
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(assignments);
         return ResponseEntity.ok(
-                ApiResponse.success(assignments, "Asignaciones extra en el rango recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asignaciones extra en el rango recuperadas con éxito")
         );
     }
 
@@ -114,11 +127,12 @@ public class ExtraAssignmentController {
      * Get assignments by activity type
      */
     @GetMapping("/activity-type/{activityTypeUuid}")
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> getAssignmentsByActivityType(
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> getAssignmentsByActivityType(
             @PathVariable UUID activityTypeUuid) {
         List<ExtraAssignmentEntity> assignments = extraAssignmentService.getAssignmentsByActivityType(activityTypeUuid);
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(assignments);
         return ResponseEntity.ok(
-                ApiResponse.success(assignments, "Asignaciones extra del tipo de actividad recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Asignaciones extra del tipo de actividad recuperadas con éxito")
         );
     }
 
@@ -163,41 +177,44 @@ public class ExtraAssignmentController {
 
     /**
      * Create new extra assignment
-     * TODO: Replace parameters with ExtraAssignmentRequestDTO when DTOs are created
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<ExtraAssignmentEntity>> createAssignment(
-            @RequestParam UUID teacherUuid,
-            @RequestParam UUID activityTypeUuid,
-            @RequestParam String title,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate assignmentDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime startTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime endTime,
-            @RequestParam(required = false) BigDecimal ratePerHour,
-            @RequestParam(required = false) String notes) {
+    public ResponseEntity<ApiResponse<ExtraAssignmentResponseDTO>> createAssignment(
+            @Valid @RequestBody ExtraAssignmentRequestDTO requestDTO) {
         ExtraAssignmentEntity assignment = extraAssignmentService.createAssignment(
-                teacherUuid, activityTypeUuid, title, assignmentDate, startTime, endTime, ratePerHour, notes);
+                requestDTO.getTeacherUuid(),
+                requestDTO.getActivityTypeUuid(),
+                requestDTO.getTitle(),
+                requestDTO.getAssignmentDate(),
+                requestDTO.getStartTime(),
+                requestDTO.getEndTime(),
+                requestDTO.getRatePerHour(),
+                requestDTO.getNotes()
+        );
+        ExtraAssignmentResponseDTO responseDTO = extraAssignmentMapper.toResponseDTO(assignment);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(assignment, "Asignación extra creada con éxito"));
+                .body(ApiResponse.success(responseDTO, "Asignación extra creada con éxito"));
     }
 
     /**
      * Update extra assignment
-     * TODO: Replace parameters with ExtraAssignmentRequestDTO when DTOs are created
      */
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<ExtraAssignmentEntity>> updateAssignment(
+    public ResponseEntity<ApiResponse<ExtraAssignmentResponseDTO>> updateAssignment(
             @PathVariable UUID uuid,
-            @RequestParam String title,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate assignmentDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime startTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime endTime,
-            @RequestParam(required = false) BigDecimal ratePerHour,
-            @RequestParam(required = false) String notes) {
+            @Valid @RequestBody ExtraAssignmentRequestDTO requestDTO) {
         ExtraAssignmentEntity assignment = extraAssignmentService.updateAssignment(
-                uuid, title, assignmentDate, startTime, endTime, ratePerHour, notes);
+                uuid,
+                requestDTO.getTitle(),
+                requestDTO.getAssignmentDate(),
+                requestDTO.getStartTime(),
+                requestDTO.getEndTime(),
+                requestDTO.getRatePerHour(),
+                requestDTO.getNotes()
+        );
+        ExtraAssignmentResponseDTO responseDTO = extraAssignmentMapper.toResponseDTO(assignment);
         return ResponseEntity.ok(
-                ApiResponse.success(assignment, "Asignación extra actualizada con éxito")
+                ApiResponse.success(responseDTO, "Asignación extra actualizada con éxito")
         );
     }
 
@@ -214,13 +231,27 @@ public class ExtraAssignmentController {
 
     /**
      * Bulk create assignments
-     * TODO: Replace List<ExtraAssignmentEntity> with BulkExtraAssignmentRequestDTO when DTOs are created
      */
     @PostMapping("/bulk")
-    public ResponseEntity<ApiResponse<List<ExtraAssignmentEntity>>> createBulkAssignments(
-            @RequestBody List<ExtraAssignmentEntity> assignments) {
-        List<ExtraAssignmentEntity> created = extraAssignmentService.createBulkAssignments(assignments);
+    public ResponseEntity<ApiResponse<List<ExtraAssignmentResponseDTO>>> createBulkAssignments(
+            @Valid @RequestBody List<ExtraAssignmentRequestDTO> assignmentRequests) {
+        List<ExtraAssignmentEntity> entitiesToCreate = assignmentRequests.stream()
+                .map(dto -> {
+                    ExtraAssignmentEntity entity = new ExtraAssignmentEntity();
+                    entity.setTitle(dto.getTitle());
+                    entity.setAssignmentDate(dto.getAssignmentDate());
+                    entity.setStartTime(dto.getStartTime());
+                    entity.setEndTime(dto.getEndTime());
+                    entity.setRatePerHour(dto.getRatePerHour());
+                    entity.setNotes(dto.getNotes());
+                    // teacherUuid and activityTypeUuid will be handled by service
+                    return entity;
+                })
+                .collect(Collectors.toList());
+
+        List<ExtraAssignmentEntity> created = extraAssignmentService.createBulkAssignments(entitiesToCreate);
+        List<ExtraAssignmentResponseDTO> responseDTOs = extraAssignmentMapper.toResponseDTOList(created);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(created, "Asignaciones extra creadas en masa con éxito"));
+                .body(ApiResponse.success(responseDTOs, "Asignaciones extra creadas en masa con éxito"));
     }
 }
