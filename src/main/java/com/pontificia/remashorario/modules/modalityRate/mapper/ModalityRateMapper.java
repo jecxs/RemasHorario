@@ -71,7 +71,7 @@ public class ModalityRateMapper {
         return com.pontificia.remashorario.modules.educationalModality.dto.EducationalModalityResponseDTO.builder()
                 .uuid(entity.getUuid())
                 .name(entity.getName())
-                .code(entity.getCode())
+                .durationYears(entity.getDurationYears())
                 .description(entity.getDescription())
                 .build();
     }
