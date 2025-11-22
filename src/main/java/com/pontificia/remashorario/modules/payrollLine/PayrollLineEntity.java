@@ -40,7 +40,7 @@ public class PayrollLineEntity extends BaseEntity {
     private BigDecimal netAmount = BigDecimal.ZERO;
 
     @Lob
-    @Column(columnDefinition = "JSON")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String details;
 
     @Column(name = "generated_at")
