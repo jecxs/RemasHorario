@@ -140,7 +140,7 @@ public class TeacherAttendanceController {
     @PostMapping("/check-in")
     public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> checkIn(
             @Valid @RequestBody TeacherAttendanceCheckInRequestDTO requestDTO) {
-        LocalDate attendanceDate = requestDTO.getDate() != null ? requestDTO.getDate() : LocalDate.now();
+        LocalDate attendanceDate = requestDTO.getAttendanceDate() != null ? requestDTO.getAttendanceDate() : LocalDate.now();
         TeacherAttendanceEntity attendance = attendanceService.checkIn(
                 requestDTO.getTeacherUuid(),
                 requestDTO.getClassSessionUuid(),
@@ -157,7 +157,7 @@ public class TeacherAttendanceController {
     @PostMapping("/check-in-with-schedule")
     public ResponseEntity<ApiResponse<TeacherAttendanceResponseDTO>> checkInWithSchedule(
             @Valid @RequestBody TeacherAttendanceCheckInWithScheduleRequestDTO requestDTO) {
-        LocalDate attendanceDate = requestDTO.getDate() != null ? requestDTO.getDate() : LocalDate.now();
+        LocalDate attendanceDate = requestDTO.getAttendanceDate() != null ? requestDTO.getAttendanceDate() : LocalDate.now();
         TeacherAttendanceEntity attendance = attendanceService.checkInWithSchedule(
                 requestDTO.getTeacherUuid(),
                 requestDTO.getClassSessionUuid(),
@@ -208,7 +208,7 @@ public class TeacherAttendanceController {
                 uuid,
                 requestDTO.getCheckinAt(),
                 requestDTO.getCheckoutAt(),
-                requestDTO.isResetPenalties(),
+                requestDTO.getResetPenalties(),
                 requestDTO.getAdminNote()
         );
         TeacherAttendanceResponseDTO responseDTO = attendanceMapper.toResponseDTO(attendance);
