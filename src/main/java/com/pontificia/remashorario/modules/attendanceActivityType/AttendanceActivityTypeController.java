@@ -1,6 +1,10 @@
 package com.pontificia.remashorario.modules.attendanceActivityType;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.attendanceActivityType.dto.AttendanceActivityTypeRequestDTO;
+import com.pontificia.remashorario.modules.attendanceActivityType.dto.AttendanceActivityTypeResponseDTO;
+import com.pontificia.remashorario.modules.attendanceActivityType.mapper.AttendanceActivityTypeMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +23,17 @@ import java.util.UUID;
 public class AttendanceActivityTypeController {
 
     private final AttendanceActivityTypeService activityTypeService;
+    private final AttendanceActivityTypeMapper activityTypeMapper;
 
     /**
      * Get all activity types
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<AttendanceActivityTypeEntity>>> getAllActivityTypes() {
+    public ResponseEntity<ApiResponse<List<AttendanceActivityTypeResponseDTO>>> getAllActivityTypes() {
         List<AttendanceActivityTypeEntity> activityTypes = activityTypeService.getAllActivityTypes();
+        List<AttendanceActivityTypeResponseDTO> responseDTOs = activityTypeMapper.toResponseDTOList(activityTypes);
         return ResponseEntity.ok(
-                ApiResponse.success(activityTypes, "Tipos de actividad recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Tipos de actividad recuperados con éxito")
         );
     }
 
@@ -35,10 +41,11 @@ public class AttendanceActivityTypeController {
      * Get activity type by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AttendanceActivityTypeEntity>> getActivityTypeById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<AttendanceActivityTypeResponseDTO>> getActivityTypeById(@PathVariable UUID uuid) {
         AttendanceActivityTypeEntity activityType = activityTypeService.getActivityTypeById(uuid);
+        AttendanceActivityTypeResponseDTO responseDTO = activityTypeMapper.toResponseDTO(activityType);
         return ResponseEntity.ok(
-                ApiResponse.success(activityType, "Tipo de actividad recuperado con éxito")
+                ApiResponse.success(responseDTO, "Tipo de actividad recuperado con éxito")
         );
     }
 
@@ -46,40 +53,46 @@ public class AttendanceActivityTypeController {
      * Get activity type by code
      */
     @GetMapping("/code/{code}")
-    public ResponseEntity<ApiResponse<AttendanceActivityTypeEntity>> getActivityTypeByCode(@PathVariable String code) {
+    public ResponseEntity<ApiResponse<AttendanceActivityTypeResponseDTO>> getActivityTypeByCode(@PathVariable String code) {
         AttendanceActivityTypeEntity activityType = activityTypeService.getActivityTypeByCode(code);
+        AttendanceActivityTypeResponseDTO responseDTO = activityTypeMapper.toResponseDTO(activityType);
         return ResponseEntity.ok(
-                ApiResponse.success(activityType, "Tipo de actividad recuperado con éxito")
+                ApiResponse.success(responseDTO, "Tipo de actividad recuperado con éxito")
         );
     }
 
     /**
      * Create new activity type
-     * TODO: Replace parameters with ActivityTypeRequestDTO when DTOs are created
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<AttendanceActivityTypeEntity>> createActivityType(
-            @RequestParam String code,
-            @RequestParam String name,
-            @RequestParam(required = false) String description) {
-        AttendanceActivityTypeEntity activityType = activityTypeService.createActivityType(code, name, description);
+    public ResponseEntity<ApiResponse<AttendanceActivityTypeResponseDTO>> createActivityType(
+            @Valid @RequestBody AttendanceActivityTypeRequestDTO requestDTO) {
+        AttendanceActivityTypeEntity activityType = activityTypeService.createActivityType(
+                requestDTO.getCode(),
+                requestDTO.getName(),
+                requestDTO.getDescription()
+        );
+        AttendanceActivityTypeResponseDTO responseDTO = activityTypeMapper.toResponseDTO(activityType);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(activityType, "Tipo de actividad creado con éxito"));
+                .body(ApiResponse.success(responseDTO, "Tipo de actividad creado con éxito"));
     }
 
     /**
      * Update activity type
-     * TODO: Replace parameters with ActivityTypeRequestDTO when DTOs are created
      */
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AttendanceActivityTypeEntity>> updateActivityType(
+    public ResponseEntity<ApiResponse<AttendanceActivityTypeResponseDTO>> updateActivityType(
             @PathVariable UUID uuid,
-            @RequestParam String code,
-            @RequestParam String name,
-            @RequestParam(required = false) String description) {
-        AttendanceActivityTypeEntity activityType = activityTypeService.updateActivityType(uuid, code, name, description);
+            @Valid @RequestBody AttendanceActivityTypeRequestDTO requestDTO) {
+        AttendanceActivityTypeEntity activityType = activityTypeService.updateActivityType(
+                uuid,
+                requestDTO.getCode(),
+                requestDTO.getName(),
+                requestDTO.getDescription()
+        );
+        AttendanceActivityTypeResponseDTO responseDTO = activityTypeMapper.toResponseDTO(activityType);
         return ResponseEntity.ok(
-                ApiResponse.success(activityType, "Tipo de actividad actualizado con éxito")
+                ApiResponse.success(responseDTO, "Tipo de actividad actualizado con éxito")
         );
     }
 

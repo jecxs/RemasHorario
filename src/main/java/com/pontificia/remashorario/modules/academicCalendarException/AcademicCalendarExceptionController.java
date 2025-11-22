@@ -1,6 +1,11 @@
 package com.pontificia.remashorario.modules.academicCalendarException;
 
 import com.pontificia.remashorario.config.ApiResponse;
+import com.pontificia.remashorario.modules.academicCalendarException.dto.AcademicCalendarExceptionRequestDTO;
+import com.pontificia.remashorario.modules.academicCalendarException.dto.AcademicCalendarExceptionResponseDTO;
+import com.pontificia.remashorario.modules.academicCalendarException.dto.BulkCalendarExceptionRequestDTO;
+import com.pontificia.remashorario.modules.academicCalendarException.mapper.AcademicCalendarExceptionMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -10,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * REST Controller for managing academic calendar exceptions (holidays, special dates)
@@ -21,15 +27,17 @@ import java.util.UUID;
 public class AcademicCalendarExceptionController {
 
     private final AcademicCalendarExceptionService exceptionService;
+    private final AcademicCalendarExceptionMapper exceptionMapper;
 
     /**
      * Get all calendar exceptions
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionEntity>>> getAllExceptions() {
+    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionResponseDTO>>> getAllExceptions() {
         List<AcademicCalendarExceptionEntity> exceptions = exceptionService.getAllExceptions();
+        List<AcademicCalendarExceptionResponseDTO> responseDTOs = exceptionMapper.toResponseDTOList(exceptions);
         return ResponseEntity.ok(
-                ApiResponse.success(exceptions, "Excepciones de calendario recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Excepciones de calendario recuperadas con éxito")
         );
     }
 
@@ -37,10 +45,11 @@ public class AcademicCalendarExceptionController {
      * Get exception by ID
      */
     @GetMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AcademicCalendarExceptionEntity>> getExceptionById(@PathVariable UUID uuid) {
+    public ResponseEntity<ApiResponse<AcademicCalendarExceptionResponseDTO>> getExceptionById(@PathVariable UUID uuid) {
         AcademicCalendarExceptionEntity exception = exceptionService.getExceptionById(uuid);
+        AcademicCalendarExceptionResponseDTO responseDTO = exceptionMapper.toResponseDTO(exception);
         return ResponseEntity.ok(
-                ApiResponse.success(exception, "Excepción de calendario recuperada con éxito")
+                ApiResponse.success(responseDTO, "Excepción de calendario recuperada con éxito")
         );
     }
 
@@ -48,11 +57,12 @@ public class AcademicCalendarExceptionController {
      * Get exception by specific date
      */
     @GetMapping("/date/{date}")
-    public ResponseEntity<ApiResponse<AcademicCalendarExceptionEntity>> getExceptionByDate(
+    public ResponseEntity<ApiResponse<AcademicCalendarExceptionResponseDTO>> getExceptionByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         AcademicCalendarExceptionEntity exception = exceptionService.getExceptionByDate(date);
+        AcademicCalendarExceptionResponseDTO responseDTO = exceptionMapper.toResponseDTO(exception);
         return ResponseEntity.ok(
-                ApiResponse.success(exception, "Excepción de calendario recuperada con éxito")
+                ApiResponse.success(responseDTO, "Excepción de calendario recuperada con éxito")
         );
     }
 
@@ -60,12 +70,13 @@ public class AcademicCalendarExceptionController {
      * Get exceptions in a date range
      */
     @GetMapping("/range")
-    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionEntity>>> getExceptionsByDateRange(
+    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionResponseDTO>>> getExceptionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         List<AcademicCalendarExceptionEntity> exceptions = exceptionService.getExceptionsByDateRange(startDate, endDate);
+        List<AcademicCalendarExceptionResponseDTO> responseDTOs = exceptionMapper.toResponseDTOList(exceptions);
         return ResponseEntity.ok(
-                ApiResponse.success(exceptions, "Excepciones de calendario recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Excepciones de calendario recuperadas con éxito")
         );
     }
 
@@ -73,12 +84,13 @@ public class AcademicCalendarExceptionController {
      * Get upcoming exceptions from a specific date
      */
     @GetMapping("/upcoming")
-    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionEntity>>> getUpcomingExceptions(
+    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionResponseDTO>>> getUpcomingExceptions(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
         LocalDate from = fromDate != null ? fromDate : LocalDate.now();
         List<AcademicCalendarExceptionEntity> exceptions = exceptionService.getUpcomingExceptions(from);
+        List<AcademicCalendarExceptionResponseDTO> responseDTOs = exceptionMapper.toResponseDTOList(exceptions);
         return ResponseEntity.ok(
-                ApiResponse.success(exceptions, "Excepciones próximas recuperadas con éxito")
+                ApiResponse.success(responseDTOs, "Excepciones próximas recuperadas con éxito")
         );
     }
 
@@ -98,42 +110,48 @@ public class AcademicCalendarExceptionController {
      * Get holidays in a specific month
      */
     @GetMapping("/month/{year}/{month}")
-    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionEntity>>> getHolidaysInMonth(
+    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionResponseDTO>>> getHolidaysInMonth(
             @PathVariable int year,
             @PathVariable int month) {
         List<AcademicCalendarExceptionEntity> holidays = exceptionService.getHolidaysInMonth(year, month);
+        List<AcademicCalendarExceptionResponseDTO> responseDTOs = exceptionMapper.toResponseDTOList(holidays);
         return ResponseEntity.ok(
-                ApiResponse.success(holidays, "Feriados del mes recuperados con éxito")
+                ApiResponse.success(responseDTOs, "Feriados del mes recuperados con éxito")
         );
     }
 
     /**
      * Create new calendar exception
-     * TODO: Replace parameters with CalendarExceptionRequestDTO when DTOs are created
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<AcademicCalendarExceptionEntity>> createException(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam String code,
-            @RequestParam(required = false) String description) {
-        AcademicCalendarExceptionEntity exception = exceptionService.createException(date, code, description);
+    public ResponseEntity<ApiResponse<AcademicCalendarExceptionResponseDTO>> createException(
+            @Valid @RequestBody AcademicCalendarExceptionRequestDTO requestDTO) {
+        AcademicCalendarExceptionEntity exception = exceptionService.createException(
+                requestDTO.getDate(),
+                requestDTO.getCode(),
+                requestDTO.getDescription()
+        );
+        AcademicCalendarExceptionResponseDTO responseDTO = exceptionMapper.toResponseDTO(exception);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(exception, "Excepción de calendario creada con éxito"));
+                .body(ApiResponse.success(responseDTO, "Excepción de calendario creada con éxito"));
     }
 
     /**
      * Update calendar exception
-     * TODO: Replace parameters with CalendarExceptionRequestDTO when DTOs are created
      */
     @PatchMapping("/{uuid}")
-    public ResponseEntity<ApiResponse<AcademicCalendarExceptionEntity>> updateException(
+    public ResponseEntity<ApiResponse<AcademicCalendarExceptionResponseDTO>> updateException(
             @PathVariable UUID uuid,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam String code,
-            @RequestParam(required = false) String description) {
-        AcademicCalendarExceptionEntity exception = exceptionService.updateException(uuid, date, code, description);
+            @Valid @RequestBody AcademicCalendarExceptionRequestDTO requestDTO) {
+        AcademicCalendarExceptionEntity exception = exceptionService.updateException(
+                uuid,
+                requestDTO.getDate(),
+                requestDTO.getCode(),
+                requestDTO.getDescription()
+        );
+        AcademicCalendarExceptionResponseDTO responseDTO = exceptionMapper.toResponseDTO(exception);
         return ResponseEntity.ok(
-                ApiResponse.success(exception, "Excepción de calendario actualizada con éxito")
+                ApiResponse.success(responseDTO, "Excepción de calendario actualizada con éxito")
         );
     }
 
@@ -150,13 +168,17 @@ public class AcademicCalendarExceptionController {
 
     /**
      * Create multiple exceptions at once (bulk import)
-     * TODO: Replace List<AcademicCalendarExceptionEntity> with BulkCalendarExceptionRequestDTO when DTOs are created
      */
     @PostMapping("/bulk")
-    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionEntity>>> createBulkExceptions(
-            @RequestBody List<AcademicCalendarExceptionEntity> exceptions) {
-        List<AcademicCalendarExceptionEntity> created = exceptionService.createBulkExceptions(exceptions);
+    public ResponseEntity<ApiResponse<List<AcademicCalendarExceptionResponseDTO>>> createBulkExceptions(
+            @Valid @RequestBody BulkCalendarExceptionRequestDTO bulkRequestDTO) {
+        List<AcademicCalendarExceptionEntity> entitiesToCreate = bulkRequestDTO.getExceptions().stream()
+                .map(exceptionMapper::toEntity)
+                .collect(Collectors.toList());
+
+        List<AcademicCalendarExceptionEntity> created = exceptionService.createBulkExceptions(entitiesToCreate);
+        List<AcademicCalendarExceptionResponseDTO> responseDTOs = exceptionMapper.toResponseDTOList(created);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(created, "Excepciones de calendario creadas en masa con éxito"));
+                .body(ApiResponse.success(responseDTOs, "Excepciones de calendario creadas en masa con éxito"));
     }
 }
