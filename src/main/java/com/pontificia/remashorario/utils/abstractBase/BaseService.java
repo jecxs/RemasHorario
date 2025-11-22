@@ -26,6 +26,10 @@ public abstract class BaseService<T> {
         return baseRepository.save(entity);
     }
 
+    public List<T> saveAll(List<T> entities) {
+        return baseRepository.saveAll(entities);
+    }
+
     public T update(T entity) {
         return baseRepository.save(entity);
     }
