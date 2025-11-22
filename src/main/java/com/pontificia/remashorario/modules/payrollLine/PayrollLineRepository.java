@@ -46,6 +46,11 @@ public interface PayrollLineRepository extends BaseRepository<PayrollLineEntity>
             "WHERE pl.payrollPeriod.uuid = :payrollPeriodUuid")
     java.math.BigDecimal calculateTotalNetAmountByPeriod(@Param("payrollPeriodUuid") UUID payrollPeriodUuid);
 
+    @Query("SELECT COALESCE(SUM(pl.grossAmount), 0) " +
+            "FROM PayrollLineEntity pl " +
+            "WHERE pl.payrollPeriod.uuid = :payrollPeriodUuid")
+    java.math.BigDecimal calculateTotalGrossAmountByPeriod(@Param("payrollPeriodUuid") UUID payrollPeriodUuid);
+
     @Query("SELECT COALESCE(SUM(pl.totalPenalties), 0) " +
             "FROM PayrollLineEntity pl " +
             "WHERE pl.payrollPeriod.uuid = :payrollPeriodUuid")

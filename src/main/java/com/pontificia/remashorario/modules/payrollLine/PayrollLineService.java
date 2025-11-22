@@ -352,6 +352,13 @@ public class PayrollLineService extends BaseService<PayrollLineEntity> {
     }
 
     /**
+     * Get total gross amount for a period
+     */
+    public BigDecimal getTotalGrossAmountByPeriod(UUID payrollPeriodUuid) {
+        return payrollLineRepository.calculateTotalGrossAmountByPeriod(payrollPeriodUuid);
+    }
+
+    /**
      * Get total penalties for a period
      */
     public BigDecimal getTotalPenaltiesByPeriod(UUID payrollPeriodUuid) {
